@@ -6,8 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "cryptography>=3.4",
-        "astor>=0.8",
-        "ast",
+        "astor>=0.8"
     ],
     entry_points={
         'console_scripts': [
@@ -16,3 +15,4 @@ setup(
     },
     python_requires=">=3.9",
 )
+
