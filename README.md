@@ -234,3 +234,5 @@ We welcome contributions! Please feel free to submit pull requests, report bugs,
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+P.S.: I'd love to upload all previous versions of obfUtil but I'm too lazy to do so.
