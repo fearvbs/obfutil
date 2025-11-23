@@ -1,184 +1,178 @@
-import os
+import random
+import zlib
 import base64
-import logging
+import marshal
+import sys
+import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# ===== Функция для ввода пароля со звёздочками =====
+# ===== Улучшенная функция ввода пароля =====
 def input_password(prompt="Введите пароль: "):
-    """
-    Запрашивает пароль, заменяя символы на звёздочки (*).
-    Работает на Windows, Linux и macOS.
-    """
-    import sys
+    """Кросс-платформенный ввод пароля со звёздочками"""
     if sys.platform == "win32":
         import msvcrt
-    else:
-        import termios, tty
-
-    password = []
-    print(prompt, end="", flush=True)
-
-    # Для Windows
-    if sys.platform == "win32":
+        password = []
+        print(prompt, end='', flush=True)
         while True:
-            ch = msvcrt.getch().decode("utf-8", errors="ignore")
-            if ch == "\r":  # Enter
+            ch = msvcrt.getwch()  # Для Windows
+            if ch == '\r':
                 break
-            elif ch == "\b":  # Backspace
+            elif ch == '\b':
                 if password:
                     password.pop()
-                    print("\b \b", end="", flush=True)
+                    print('\b \b', end='', flush=True)
             else:
                 password.append(ch)
-                print("*", end="", flush=True)
-    
-    # Для Linux/macOS
+                print('*', end='', flush=True)
+        print()
+        return ''.join(password)
     else:
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
         try:
-            tty.setraw(sys.stdin.fileno())
-            while True:
-                ch = sys.stdin.read(1)
-                if ch == "\r" or ch == "\n":  # Enter
-                    break
-                elif ch == "\x7f":  # Backspace (Linux/macOS)
-                    if password:
-                        password.pop()
-                        print("\b \b", end="", flush=True)
-                else:
-                    password.append(ch)
-                    print("*", end="", flush=True)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            from getpass import getpass
+            return getpass(prompt)
+        except ImportError:
+            print("Внимание: пароль будет виден при вводе!")
+            return input(prompt)
 
-    print()
-    return "".join(password)
-
-# ===== Основные функции шифрования/дешифрования =====
+# ===== Основные функции шифрования =====
 def generate_key(password: str, salt: bytes) -> bytes:
-    """Генерирует ключ из пароля с использованием PBKDF2"""
+    """Генерирует ключ из пароля"""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
         iterations=100000,
     )
-    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-    return key
+    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-def encrypt_content(file_path: str, password: str) -> bool:
-    """Шифрует содержимое файла (имя и расширение остаются прежними)"""
+def encrypt_data(data: bytes, password: str) -> bytes:
+    """Шифрует данные с паролем"""
+    salt = os.urandom(16)
+    key = generate_key(password, salt)
+    f = Fernet(key)
+    return salt + f.encrypt(data)
+
+def decrypt_data(encrypted: bytes, password: str) -> bytes:
+    """Дешифрует данные с паролем"""
+    salt, encrypted = encrypted[:16], encrypted[16:]
+    key = generate_key(password, salt)
+    f = Fernet(key)
+    return f.decrypt(encrypted)
+
+# ===== Функции обфускации =====
+def random_name(length=8):
+    """Генерирует случайное имя переменной"""
+    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
+    return ''.join(random.choice(chars) for _ in range(length))
+
+def obfuscate_code(source_code: str) -> str:
+    """Обфусцирует исходный код"""
+    compressed = zlib.compress(source_code.encode())
+    encoded = base64.b64encode(compressed).decode('utf-8')
+    var_names = [random_name() for _ in range(4)]
+    
+    return f"""
+import zlib, base64
+{var_names[0]} = b"{encoded}"
+{var_names[1]} = base64.b64decode({var_names[0]})
+{var_names[2]} = zlib.decompress({var_names[1]})
+exec({var_names[2]}.decode('utf-8'))
+
+
+def deep_obfuscate(code: str) -> bytes:
+    """Двойная обфускация с marshal"""
+    obfuscated = obfuscate_code(code)
+    compiled = compile(obfuscated, '<string>', 'exec')
+    return marshal.dumps(compiled)
+
+# ===== Основные операции =====
+def encrypt_file(input_path: str, password: str):
+    """Шифрует файл с обфускацией"""
     try:
-        if not os.path.exists(file_path):
-            logger.error("Файл не существует!")
-            return False
-
-        # Читаем содержимое
-        with open(file_path, "rb") as f:
-            content = f.read()
-
-        # Генерируем ключ
-        salt = os.urandom(16)
-        key = generate_key(password, salt)
-        fernet = Fernet(key)
-
-        # Шифруем и сохраняем (соль + зашифрованные данные)
-        encrypted = fernet.encrypt(content)
-
-        # Создаем временный файл
-        temp_file = f"{file_path}.tmp"
-        with open(temp_file, "wb") as f:
-            f.write(salt + encrypted)  # Сохраняем соль и зашифрованные данные
-
-        # Заменяем оригинальный файл
-        os.replace(temp_file, file_path)
+        with open(input_path, 'r', encoding='utf-8') as f:
+            code = f.read()
+        
+        obfuscated = deep_obfuscate(code)
+        encrypted = encrypt_data(obfuscated, password)
+        
+        output_path = input_path + '.enc'
+        with open(output_path, 'wb') as f:
+            f.write(encrypted)
+        
+        print(f"Файл зашифрован: {output_path}")
         return True
-
+    
     except Exception as e:
-        logger.error(f"Ошибка при шифровании: {e}")
+        print(f"Ошибка шифрования: {e}")
         return False
 
-def decrypt_content(file_path: str, password: str) -> bytes | None:
-    """Дешифрует содержимое файла и возвращает его"""
+def decrypt_file(input_path: str, password: str, edit_mode=False):
+    """Дешифрует файл"""
     try:
-        if not os.path.exists(file_path):
-            logger.error("Файл не существует!")
-            return None
-
-        # Читаем соль и зашифрованные данные
-        with open(file_path, "rb") as f:
-            salt = f.read(16)  # Первые 16 байт — соль
-            encrypted = f.read()  # Остальное — зашифрованные данные
-
-        # Генерируем ключ
-        key = generate_key(password, salt)
-        fernet = Fernet(key)
-
-        # Дешифруем
-        decrypted = fernet.decrypt(encrypted)
-        return decrypted
-
+        with open(input_path, 'rb') as f:
+            encrypted = f.read()
+        
+        decrypted = decrypt_data(encrypted, password)
+        code_obj = marshal.loads(decrypted)
+        
+        if edit_mode:
+            temp_file = input_path.replace('.enc', '.tmp.py')
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                f.write("# Редактируйте этот файл\n")
+                exec(code_obj, {'__file__': temp_file})
+            
+            print(f"Файл для редактирования: {temp_file}")
+            input("Нажмите Enter после редактирования...")
+            
+            with open(temp_file, 'r', encoding='utf-8') as f:
+                new_code = f.read()
+            
+            new_obfuscated = deep_obfuscate(new_code)
+            new_encrypted = encrypt_data(new_obfuscated, password)
+            
+            with open(input_path, 'wb') as f:
+                f.write(new_encrypted)
+            
+            os.remove(temp_file)
+            print("Файл перешифрован.")
+            return True
+        else:
+            exec(code_obj)
+            return True
+    
     except Exception as e:
-        logger.error(f"Ошибка при дешифровании: {e}")
-        return None
+        print(f"Ошибка дешифрования: {e}")
+        return False
 
-# ===== Основной интерфейс =====
+# ===== Интерфейс командной строки =====
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Шифрование/дешифрование содержимого файлов")
-    parser.add_argument("file", help="Имя файла")
-    parser.add_argument("-e", "--encrypt", action="store_true", help="Зашифровать файл")
-    parser.add_argument("-d", "--decrypt", action="store_true", help="Дешифровать файл (показать содержимое)")
-    parser.add_argument("--edit", action="store_true", help="Редактировать файл")
-    args = parser.parse_args()
-
-    if not os.path.exists(args.file):
-        print("Ошибка: файл не существует!")
+    if len(sys.argv) < 3:
+        print("Использование:")
+        print("  Шифрование: python script.py encrypt file.py")
+        print("  Просмотр:   python script.py view file.enc")
+        print("  Редактирование: python script.py edit file.enc")
         return
 
-    password = input_password("Введите пароль: ")
-    if args.encrypt:
+    mode = sys.argv[1]
+    file_path = sys.argv[2]
+
+    if mode == 'encrypt':
+        password = input_password("Введите пароль для шифрования: ")
         confirm = input_password("Подтвердите пароль: ")
-        if password != confirm:
+        if password == confirm:
+            encrypt_file(file_path, password)
+        else:
             print("Пароли не совпадают!")
-            return
-        if encrypt_content(args.file, password):
-            print("Файл успешно зашифрован.")
-    elif args.decrypt:
-        decrypted = decrypt_content(args.file, password)
-        if decrypted:
-            print("\n--- Дешифрованное содержимое ---")
-            print(decrypted.decode("utf-8", errors="replace"))
-    elif args.edit:
-        decrypted = decrypt_content(args.file, password)
-        if decrypted is None:
-            return
-        # Сохраняем во временный файл для редактирования
-        temp_file = f"{args.file}.tmp"
-        try:
-            with open(temp_file, "wb") as f:
-                f.write(decrypted)
-            # Открываем редактор (например, Notepad/Vim/Nano)
-            editor = "notepad.exe" if os.name == "nt" else "nano"
-            os.system(f'{editor} "{temp_file}"')
-            # Читаем измененное содержимое
-            with open(temp_file, "rb") as f:
-                new_content = f.read()
-            # Шифруем и сохраняем
-            encrypt_content(args.file, password)
-            print("Файл успешно отредактирован и зашифрован.")
-        finally:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+    elif mode == 'view':
+        password = input_password("Введите пароль: ")
+        decrypt_file(file_path, password)
+    elif mode == 'edit':
+        password = input_password("Введите пароль: ")
+        decrypt_file(file_path, password, edit_mode=True)
     else:
-        print("Укажите действие: --encrypt, --decrypt или --edit")
+        print("Неизвестная команда. Используйте encrypt/view/edit")
 
 if __name__ == "__main__":
     main()
