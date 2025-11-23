@@ -9,7 +9,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
 
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Documentation](#-documentation)
+[Features](#-features) • [Installation](#-installation) • [Usage](#-Basic-usage) • [Documentation](#-documentation) • [Changelog](CHANGELOG.md)
 
 
 ### Installation
