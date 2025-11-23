@@ -14,17 +14,46 @@
 
 ### Installation
 
-1. **Clone and setup**
+### From GitHub (Recommended)
+
 ```bash
+# Clone the repository
 git clone https://github.com/fearvbs/obfutil.git
 cd obfutil
-pip install -r requirements.txt
+
+# Install in development mode
+pip install -e .
 ```
 
-2. **Verify installation**
+### Verify Installation
+
 ```bash
+# Check if obfutil is available
+obfutil --help
+
+# Or using module syntax
 python -m obfutil.ui.cli.main --help
 ```
+
+### For End Users
+
+If you just want to use ObfUtil without development:
+
+```bash
+# Install directly from GitHub
+pip install git+https://github.com/fearvbs/obfutil.git
+```
+
+### Dependencies
+
+ObfUtil will automatically install:
+- `cryptography` - For AES-256 encryption
+- Other required Python standard library modules
+
+---
+
+**Note**: The `-e` flag installs in "editable" mode, allowing you to modify the code while keeping the installation functional.
+
 ## ✨ Features
 
 - **Secure Encryption** - AES-256 with password or keyfile protection
