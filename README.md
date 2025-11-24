@@ -3,7 +3,7 @@
 
 
 
-![Version](https://img.shields.io/badge/version-3.0--Global-blue)
+![Version](https://img.shields.io/badge/version-3.1-blue)
 ![Python](https://img.shields.io/badge/python-3.9+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
