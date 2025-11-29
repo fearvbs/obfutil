@@ -562,37 +562,31 @@ class ObfUtilAPI:
         }
             
     def get_config(self) -> Dict[str, Any]:
-        """Get current system settings with extended information"""
+        """Get current system settings with proper paths"""
         try:
-            from obfutil.config import load_config, DEFAULT_KEY_PATH, DEFAULT_LANG
+            from obfutil.config import load_config, DEFAULT_KEY_PATH, CONFIG_PATH, LOGS_DIR, VAULTS_DIR
             from pathlib import Path
 
             config = load_config()
-            key_file_exists = Path(DEFAULT_KEY_PATH).exists()
-            key_file_size = Path(DEFAULT_KEY_PATH).stat().st_size if key_file_exists else 0
 
-            # Parse supported_languages string into list
-            supported_langs_str = config.get("supported_languages", "en,ru,de")
-            supported_languages = [lang.strip() for lang in supported_langs_str.split(",")]
-
-            # Extend basic configuration
+            # Enhanced configuration with all paths
             enhanced_config = {
                 **config,
-                'system_info': {
-                    'supported_languages': supported_languages,
-                    'default_language': DEFAULT_LANG,
-                    'default_key_path': DEFAULT_KEY_PATH
+                'paths': {
+                    'config_file': str(CONFIG_PATH),
+                    'key_file': str(DEFAULT_KEY_PATH),
+                    'logs_directory': str(LOGS_DIR),
+                    'vaults_directory': str(VAULTS_DIR),
+                    'app_data_directory': str(LOGS_DIR.parent)  # .obfutil directory
                 },
                 'key_file_status': {
-                    'exists': key_file_exists,
-                    'path': DEFAULT_KEY_PATH,
-                    'size_bytes': key_file_size,
-                    'size_mb': round(key_file_size / (1024 * 1024), 2) if key_file_exists else 0
+                    'exists': Path(DEFAULT_KEY_PATH).exists(),
+                    'path': str(DEFAULT_KEY_PATH)
                 },
-                'environment': {
-                    'config_file_exists': Path('config.ini').exists(),
-                    'logs_directory_exists': Path('logs').exists(),
-                    'vaults_directory_exists': Path('vaults').exists()
+                'directories_status': {
+                    'config_file_exists': CONFIG_PATH.exists(),
+                    'logs_directory_exists': LOGS_DIR.exists(),
+                    'vaults_directory_exists': VAULTS_DIR.exists()
                 }
             }
 

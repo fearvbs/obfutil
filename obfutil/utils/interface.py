@@ -123,7 +123,7 @@ def show_system_status(status_data, lang: str = "en"):
     print("=" * 40)
 
 def show_configuration(config_data, lang: str = "en"):
-    """Display configuration in status-style format"""
+    """Display configuration with proper paths"""
     t = localization.get_translation
     
     if not config_data.get('success'):
@@ -137,36 +137,44 @@ def show_configuration(config_data, lang: str = "en"):
     print(f"{t(lang, 'current_language')}: {config.get('language', 'N/A')}")
     print(f"{t(lang, 'version_title')}: {config.get('version', 'N/A')}")
     print(f"{t(lang, 'encryption_method')}: {config.get('encryption_method', 'N/A')}")
-    print(f"{t(lang, 'key_path_cfg')}: {config.get('key_path', 'N/A')}")
     
-    # New info
-    key_status = config.get('key_file_status', {})
-    key_exists = key_status.get('exists', False)
-    print(f"{t(lang, 'key_file_cfg')}: {t(lang, 'exists') if key_exists else t(lang, 'not_found')}")
-    if key_exists:
-        print(f"{t(lang, 'key_size')}: {key_status.get('size_mb', 0)} MB")
+    # Show paths
+    if 'paths' in config:
+        paths = config['paths']
+        print(f"\n{t(lang, 'paths')}:")
+        print(f"  Config: {paths.get('config_file', 'N/A')}")
+        print(f"  Key File: {paths.get('key_file', 'N/A')}")
+        print(f"  Logs: {paths.get('logs_directory', 'N/A')}")
+        print(f"  Vaults: {paths.get('vaults_directory', 'N/A')}")
     
-    environment = config.get('environment', {})
-    print(f"{t(lang, 'cfg_file_cfg')}: {t(lang, 'exists') if environment.get('config_file_exists') else t(lang, 'not_found')}")
-    print(f"{t(lang, 'logs_dir')}: {t(lang, 'exists') if environment.get('logs_directory_exists') else t(lang, 'not_found')}")
-    print(f"{t(lang, 'vaults_dir')}: {t(lang, 'exists') if environment.get('vaults_directory_exists') else t(lang, 'not_found')}")
+    # Show status
+    if 'directories_status' in config:
+        status = config['directories_status']
+        print(f"\n{t(lang, 'status')}:")
+        print(f"  {t(lang, 'cfg_file_cfg')}: {'✓ ' + t(lang, 'exists') if status.get('config_file_exists') else '✗ ' + t(lang, 'not_found')}")
+        print(f"  {t(lang, 'logs_dir')}: {'✓ ' + t(lang, 'exists') if status.get('logs_directory_exists') else '✗ ' + t(lang, 'not_found')}")
+        print(f"  {t(lang, 'vaults_dir')}: {'✓ ' + t(lang, 'exists') if status.get('vaults_directory_exists') else '✗ ' + t(lang, 'not_found')}")
     
     print("=" * 40)
 
 def show_vault_help(lang: str = "en"):
-    """Display vault help in status-style format"""
+    """Display vault help with V3.2 features"""
     t = localization.get_translation
     
     vault_commands = [
         "vault create <name> [--size MB]",
         "vault list",
         "vault info <name>", 
-        "vault analyze <name>",
+        "vault preview <name>",
+        "vault verify <name> [--deep]",
+        "vault health <name>",
+        "vault storage <name>",
+        "vault secure-delete <name>",
         "vault delete <name>",
         "vault add <name> <file> [internal_path] [--move]",
-        "vault extract <name> <internal_path> [output_path]",
+        "vault extract <name> <internal_path> <output_path>",
         "vault remove <name> <internal_path>",
-        "vault list-files <name>"
+        "vault files <name>"
     ]
     
     print("\n" + " " * 13 + t(lang, "vault_help_title"))
@@ -177,9 +185,10 @@ def show_vault_help(lang: str = "en"):
         print(f"  {cmd}")
     print()
     print(t(lang, "vault_help_examples"))
-    print(f"  {t(lang, 'vault_create_pass')}")
-    print(f"  {t(lang, 'vault_list')}")
-    print(f"  {t(lang, 'vault_analyze')}")
+    print(f"  obfutil vault create myvault --size 100 --password")
+    print(f"  obfutil vault preview myvault --password")
+    print(f"  obfutil vault verify myvault --deep --key-file")
+    print(f"  obfutil vault add myvault file.txt --password --move")
     print("=" * 40)
 
 

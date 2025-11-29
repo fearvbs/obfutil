@@ -59,6 +59,7 @@ def main():
         vault_parser.add_argument("--move", action="store_true", help="Move file to vault (delete original)")
         vault_parser.add_argument("--help", action="store_true", help="Show vault help")
         vault_parser.add_argument("--lang", type=str, help="Set language (en/ru/de)")
+        vault_parser.add_argument("--deep", action="store_true", help="Deep integrity verification")
         
         vault_args = vault_parser.parse_args(sys.argv[2:])
         

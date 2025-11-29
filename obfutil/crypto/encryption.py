@@ -123,7 +123,7 @@ def _windows_password_input(prompt):
     return ''.join(password_chars)
 
 def verify_file_integrity(file, password=None, key=None, lang="en"):
-    """Verify encrypted file integrity"""
+    """Verify encrypted file integrity with proper conclusion"""
     try:
         # First decrypt
         data = Path(file).read_bytes()
@@ -133,7 +133,7 @@ def verify_file_integrity(file, password=None, key=None, lang="en"):
         elif password:
             dec_data = decrypt_data(data, password=password)
         else:
-            log.error("Specify --password or --key-file for verification")
+            print("ERROR: Specify --password or --key-file for verification")
             return
         
         # Save temporary decrypted data
@@ -152,13 +152,19 @@ def verify_file_integrity(file, password=None, key=None, lang="en"):
         os.remove(temp_file)
         
         if is_valid:
-            log.info("File integrity verified successfully")
-            log.info(f"File size: {len(original_data)} bytes, Hash: {hashlib.sha256(original_data).hexdigest()[:16]}...")
+            print("✓ INTEGRITY VERIFIED SUCCESSFULLY")
+            print(f"File: {file}")
+            print(f"Size: {len(original_data)} bytes")
+            print(f"Hash: {hashlib.sha256(original_data).hexdigest()[:32]}...")
+            print("Conclusion: File is authentic and unchanged")
         else:
-            log.warning(f"Integrity check failed: {message}")
+            print("✗ INTEGRITY CHECK FAILED")
+            print(f"File: {file}") 
+            print(f"Error: {message}")
+            print("Conclusion: File may be corrupted or tampered with")
             
     except Exception as e:
-        log.error(f"Verification error: {str(e)}")
+        print(f"ERROR: Verification failed: {str(e)}")
 
 def decrypt_file_with_integrity(file, password=None, key=None, edit_mode=False, lang="en"):
     """Decrypt file with integrity verification"""
@@ -245,14 +251,21 @@ def encrypt_data(data: bytes, password=None, key=None) -> bytes:
         return salt + Fernet(derived_key).encrypt(data)
 
 def decrypt_data(data: bytes, password=None, key=None) -> bytes:
-    """Decrypt data"""
-    if key:
-        return Fernet(key).decrypt(data)
-    else:
-        salt = data[:16]
-        enc = data[16:]
-        derived_key = generate_key(password, salt)
-        return Fernet(derived_key).decrypt(enc)
+    """Decrypt data - ensure it works with vault format"""
+    try:
+        if key:
+            return Fernet(key).decrypt(data)
+        else:
+            # For password-based encryption, extract salt first
+            if len(data) < 16:
+                raise ValueError("Data too short for password decryption")
+                
+            salt = data[:16]
+            enc = data[16:]
+            derived_key = generate_key(password, salt)
+            return Fernet(derived_key).decrypt(enc)
+    except Exception as e:
+        raise Exception(f"Decryption failed: {str(e)}")
 
 def encrypt_file(file, password=None, key=None, lang=DEFAULT_LANG):
     """Encrypt file"""

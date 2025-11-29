@@ -140,6 +140,17 @@ _locales = {
         "vault_file_types": "File types",
         "total_files": "Total files",
         "total_size": "Total size",
+        
+        "vault_preview": "Quick vault preview",
+        "vault_verify": "Verify vault integrity", 
+        "vault_health": "Check vault health",
+        "vault_storage": "Show storage usage",
+        "paths": "Paths",
+        "status": "Status", 
+        "integrity_verified_msg": "Integrity verified successfully",
+        "integrity_failed_msg": "Integrity check failed",
+        "file_tampered": "File may be corrupted or tampered with",
+        "file_authentic": "File is authentic and unchanged"
     },
     "ru": {
         "menu_title": "ObfUtil версия {VERSION}",
@@ -277,6 +288,17 @@ _locales = {
         "vault_file_types": "Типы файлов",
         "total_files": "Всего файлов",
         "total_size": "Общий размер",
+        
+        "vault_preview": "Быстрый просмотр",
+        "vault_verify": "Быстрая проверка целостности", 
+        "vault_health": "Быстрая проверккка работоспособности",
+        "vault_storage": "Показать использование сейфа",
+        "paths": "Пути",
+        "status": "Статус",
+        "integrity_verified_msg": "Целостность проверена успешно",
+        "integrity_failed_msg": "Проверка целостности не удалась", 
+        "file_tampered": "Файл может быть поврежден или изменен",
+        "file_authentic": "Файл аутентичен и не изменен"
     },
     "de": {
         "menu_title": "ObfUtil Version {VERSION}",
@@ -414,6 +436,17 @@ _locales = {
         "vault_file_types": "Dateitypen",
         "total_files": "Dateien gesamt",
         "total_size": "Gesamtgröße",
+        
+        "vault_preview": "Schnelle Tresorvorschau",
+        "vault_verify": "Verifizieren Sie die Vault-Integrität", 
+        "vault_health": "Überprüfen Sie die Gesundheit des Tresors",
+        "vault_storage": "Speichernutzung anzeigen",
+        "paths": "Pfade",
+        "status": "Status",
+        "integrity_verified_msg": "Integrität erfolgreich überprüft",
+        "integrity_failed_msg": "Integritätsprüfung fehlgeschlagen",
+        "file_tampered": "Datei könnte beschädigt oder manipuliert sein",
+        "file_authentic": "Datei ist authentisch und unverändert"
     }
 }
 
