@@ -253,7 +253,6 @@ obfutil --lang en    # English
 - **Storage**: ~/.obfutil/ directory with write permissions
 ## 🆘 Related
 
-- 📚 **Documentation**: Check the `docs/` directory for detailed guides
 - 🐛 **Issues**: Report bugs on the [Issue Tracker](https://github.com/fearvbs/obfutil/issues)
 - 💬 **Discussions**: Join conversations on our [Discussions](https://github.com/fearvbs/obfutil/discussions) page
 - 🔄 **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for version history
@@ -268,6 +267,7 @@ We welcome contributions! Please feel free to submit pull requests, report bugs,
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
