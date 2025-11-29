@@ -3,10 +3,12 @@
 All notable changes to ObfUtil will be documented in this file.
 
 ## V1.0
+
 **Added**
 - First release of obfuscator with limited usage
 
 ## V1.1
+
 **Added**
 - .exe executable tool
 - Password hiding with "*" characters
@@ -18,6 +20,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Flag-based system instead of options
 
 ## V1.2
+
 **Added**
 - Raw README.md
 - Python script obfuscation
@@ -35,6 +38,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Recoded encryption/decryption functions
 
 ## V1.3
+
 **Added**
 - New UI with usage, commands, options and examples
 - Configuration system in main script
@@ -45,6 +49,7 @@ All notable changes to ObfUtil will be documented in this file.
 - requirements.txt
 
 ## V1.4
+
 **Added**
 - config.ini external configuration
 - More usage examples
@@ -57,6 +62,7 @@ All notable changes to ObfUtil will be documented in this file.
 - German language from selection
 
 ## V1.5
+
 **Added**
 - 12-character password generation
 
@@ -67,6 +73,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Examples format (removed # symbols)
 
 ## V2.0-aes256
+
 **Added**
 - AES-256 encryption support
 - aes.py for Python script obfuscation
@@ -82,6 +89,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Legacy code
 
 ## V2.0-release
+
 **Added**
 - Advanced Python obfuscation (import rewriter, self-mod code, CFG, junk code)
 - Flexible password generation (>8 symbols)
@@ -95,10 +103,12 @@ All notable changes to ObfUtil will be documented in this file.
 - Main function structure
 
 ## V2.1
+
 **Added**
 - "Nuclear" obfuscation method for Python scripts
 
 ## V2.2
+
 **Added**
 - Default language recognition
 - Logging via .log file
@@ -115,6 +125,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Rebranded as "advanced encryption tool"
 
 ## V2.3
+
 **Added**
 - HMAC support for tamper detection
 - New commands: encrypt-integrity, decrypt-integrity, verify-integrity
@@ -132,6 +143,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Function signature mismatches in main.py
 
 ## V3.0-global
+
 **Added**
 - Encrypted vault system for secure file containers
 - Vault operations: create/list/info/add/extract/remove/delete
@@ -197,6 +209,7 @@ All notable changes to ObfUtil will be documented in this file.
 - Unsecure temporary file handling methods
 
 ## V3.1
+
 **Added**
 - Consistent logger usage replacing print statements for operational messages
 
@@ -214,4 +227,46 @@ All notable changes to ObfUtil will be documented in this file.
 - Redundant logging messages that duplicated functionality
 - Direct console output for system events in favor of logger
 - Excessive file operation logging in vault management
+
 - Duplicate code in password input handling
+
+## V3.2
+
+**Added**
+- Secure memory management with automatic zeroization for sensitive data
+- Quick vault preview command for metadata access without full data loading
+- Vault integrity verification system with deep and quick check modes
+- Vault health status monitoring command
+- Storage usage analysis command for vault capacity tracking
+- Secure vault deletion with guaranteed memory cleanup
+- Enhanced vault listing with health status and file count information
+
+**Changed**
+- Vault container operations to use secure memory management
+- Vault open/close procedures to include automatic memory cleanup
+- Integrity verification to focus on header and file table consistency
+- Configuration display to show all system paths and directory status
+- File integrity verification output to include clear conclusion messages
+
+**Fixed**
+- Quick vault verification status display and messaging
+- Configuration path display in system information
+- Integrity check conclusion reporting for encrypted files
+- Vault health status calculation in listing operations
+
+**Removed**
+- File hash verification from integrity checks (deferred to V3.3)
+- Secure header HMAC implementation (deferred to V3.3)
+- Redundant memory buffers in vault operations
+
+**Security**
+- Implemented secure memory wiping for all decrypted data
+- Added protection against memory forensic analysis
+- Enhanced vault access controls with exponential backoff
+- Improved sensitive data handling throughout operations
+
+**Performance** 
+- Optimized vault preview with metadata-only loading
+- Reduced memory footprint for large vault operations
+- Improved response time for vault health checks
+- Streamlined file addition process
