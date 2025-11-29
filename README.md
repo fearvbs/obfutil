@@ -189,7 +189,7 @@ obfutil vault extract my_docs document.pdf ./extracted.pdf --password
 obfutil vault info my_docs
 
 # Advanced vault information
-ovfutil vault info my_docs --password
+obfutil vault info my_docs --password
 ```
 
 ### Advanced Features
@@ -230,6 +230,14 @@ obfutil --lang ru    # Russian
 obfutil --lang de    # German
 obfutil --lang en    # English
 ```
+
+## ❓ Troubleshooting
+
+**Common issues:**
+- Permission errors: Ensure write access to `~/.obfutil/`
+- Installation issues: Try `pip install --upgrade pip`
+- Command not found: Verify Python Scripts directory is in PATH
+
 ## 🎯 Use Cases
 
 - **Developers**: Protect intellectual property with code obfuscation
