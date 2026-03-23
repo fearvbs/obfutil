@@ -8,16 +8,18 @@ from obfutil.vault.container import VaultContainer
 from obfutil.utils.logger import get_logger
 from obfutil.config import VAULTS_DIR
 
+
 class VaultManager:
     """
     Enhanced vault manager with V3.2 features
+    V3.3-fix: some small fixes for convenience ( full changes in CHANGELOG.md )
     """
     
     def __init__(self, vaults_dir: str = None):
+        self.log = get_logger("VLT_MANAGER")  # Атрибут экземпляра
         self.vaults_dir = Path(vaults_dir) if vaults_dir else VAULTS_DIR
         self.vaults_dir.mkdir(parents=True, exist_ok=True)
         self.config_file = self.vaults_dir / "vaults.json"
-        self.log = get_logger("VAULT_MANAGER")
         self._load_config()
         self.open_vaults = {}
     
@@ -74,30 +76,6 @@ class VaultManager:
             return vault.quick_preview()
         
         return self.secure_operation(name, preview_op, password, key) or {}
-    
-    def get_vault_health(self, name: str, password: str = None, key: bytes = None) -> Dict:
-        """Get vault health status - SIMPLIFIED VERSION"""
-        try:
-            vault = self.open_vault(name, password, key)
-            if not vault:
-                return {'status': 'unhealthy', 'message': 'Cannot open vault'}
-            
-            health_info = {
-                'status': 'healthy',
-                'file_count': len(vault.file_table),
-                'total_size': sum(f['size'] for f in vault.file_table.values()),
-                'metadata_ok': bool(vault.metadata)
-            }
-            
-            vault.secure_close()
-            if name in self.open_vaults:
-                del self.open_vaults[name]
-                
-            return health_info
-            
-        except Exception as e:
-            self.log.error(f"Health check error for '{name}': {e}")
-            return {'status': 'error', 'message': str(e)}
     
     def verify_vault_integrity(self, name: str, password: str = None, 
                          key: bytes = None, deep_check: bool = False) -> Dict:
@@ -201,6 +179,13 @@ class VaultManager:
                 self.log.debug(f"Vault path: {vault_path}")
                 self.log.debug(f"Vault exists: {vault_path.exists()}")
                 self.log.debug(f"Vault size: {vault_path.stat().st_size if vault_path.exists() else 0} bytes")
+                
+                # Try to detect if it's a password issue
+                if password is not None:
+                    self.log.warning(f"Possible wrong password for vault '{name}'")
+                elif key is not None:
+                    self.log.warning(f"Possible wrong key for vault '{name}'")
+                
                 return None
 
         except Exception as e:
@@ -259,12 +244,15 @@ class VaultManager:
                 self.log.warning(f"Vault file not found: {vault_path}")
                 return {}
 
+            # Получаем дату создания из конфига (vaults.json)
+            created_at_from_config = self.config[name].get('created_at', 'Unknown')
+
             preview = self.quick_vault_preview(name, password, key)
             if preview.get('status') == 'success':
                 info = {
                     'path': str(vault_path),
                     'status': 'ACTIVE',
-                    'created_at': preview.get('created_at', 'Unknown'),
+                    'created_at': created_at_from_config,
                     'file_count': preview.get('file_count', 0),
                     'total_size_mb': preview.get('total_size_mb', 0),
                     'files_list': [f['name'] for f in preview.get('files', [])],
@@ -275,13 +263,17 @@ class VaultManager:
                 storage_info = self.check_vault_storage(name, password, key)
                 info.update(storage_info)
                 
-                self.log.info(f"Retrieved enhanced info for vault: {name}")
+                self.log.debug(f"Retrieved enhanced info for vault: {name}")
                 return info
             else:
+                # if missing, return base info
                 return {
                     'path': str(vault_path),
                     'status': 'ACTIVE' if vault_path.exists() else 'MISSING',
+                    'created_at': created_at_from_config,
                     'file_count': 0,
+                    'total_size_mb': self.config[name].get('size_mb', 0),
+                    'files_list': [],
                     'secure_features': False
                 }
 
@@ -290,7 +282,7 @@ class VaultManager:
             return {}
 
     def create_vault(self, name: str, size_mb: int = 100, 
-                    password: str = None, key: bytes = None) -> bool:
+                password: str = None, key: bytes = None) -> bool:
         """Create new vault using enhanced security features"""
         try:
             vault_path = self.vaults_dir / f"{name}.obfvault"
@@ -304,16 +296,19 @@ class VaultManager:
             success = vault.create(size_mb, password, key)
             
             if success:
+                created_at = vault.metadata.get('created_at_str', time.strftime('%Y-%m-%d %H:%M:%S'))
+                
                 self.config[name] = {
                     'path': str(vault_path),
                     'size_mb': size_mb,
-                    'created_at': vault.metadata['created_at_str']
+                    'created_at': created_at,
+                    'created_timestamp': time.time()
                 }
                 self._save_config()
                 self.log.info(f"Vault '{name}' created successfully")
                 return True
             else:
-                self.log.error(f"Failed to create vault '{name}'")
+                self.log.warning(f"Failed to create vault '{name}'")
                 return False
                 
         except Exception as e:
@@ -321,21 +316,27 @@ class VaultManager:
             return False
 
     def add_file_to_vault(self, name: str, file_path: str, internal_path: str = None, 
-                         password: str = None, key: bytes = None, move: bool = False) -> bool:
-        """Add file to vault"""
+                     password: str = None, key: bytes = None, move: bool = False) -> bool:
+        """Add file to vault with improved error handling"""
         try:
+            # check for original file
+            source_path = Path(file_path)
+            if not source_path.exists():
+                self.log.warning(f"Source file not found: {file_path}")
+                return False
+            
+            # check if vault
+            if name not in self.config:
+                self.log.error(f"Vault not found: {name}")
+                return False
+            
             vault = self.open_vault(name, password, key)
             if not vault:
-                self.log.error(f"Failed to open vault: {name}")
+                self.log.error(f"Failed to open vault: {name} - wrong password or corrupted")
                 return False
             
-            source_path = Path(file_path)
             if not internal_path:
                 internal_path = source_path.name
-            
-            if not source_path.exists():
-                self.log.error(f"Source file not found: {file_path}")
-                return False
             
             self.log.info(f"Adding file to vault '{name}': {file_path} -> {internal_path}")
             success = vault.add_file(source_path, internal_path, password, key)
@@ -349,6 +350,7 @@ class VaultManager:
                         self.log.info(f"Original file deleted: {file_path}")
                     except Exception as e:
                         self.log.error(f"Failed to delete original file: {e}")
+                        print(f"WARNING: File added but original could not be deleted: {e}")
             else:
                 self.log.error(f"Failed to add file to vault '{name}'")
             
@@ -372,10 +374,10 @@ class VaultManager:
                 return False
 
             files_in_vault = vault.list_files()
-            self.log.info(f"Vault '{name}' contains {len(files_in_vault)} files")
+            self.log.debug(f"Vault '{name}' contains {len(files_in_vault)} files")
 
             output = Path(output_path)
-            self.log.info(f"Attempting to extract: {internal_path} -> {output_path}")
+            self.log.debug(f"Attempting to extract: {internal_path} -> {output_path}")
             success = vault.extract_file(internal_path, output, password, key)
 
             if success:

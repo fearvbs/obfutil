@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 from obfutil.vault.manager import VaultManager
 from obfutil.crypto.encryption import input_password, load_key_from_file
@@ -35,7 +36,7 @@ def handle_vault_command(args, lang):
                     for file_info in preview['files']:
                         print(f"  - {file_info['name']} ({file_info['size_kb']} KB)")
             else:
-                print(f"ERROR: {preview.get('message', 'Failed to preview')}")
+                print(f"{preview.get('message', 'Failed to preview')}")
         
         elif args.vault_command == 'verify':
             if not args.vault_name:
@@ -44,7 +45,7 @@ def handle_vault_command(args, lang):
                 
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file for verification")
+                print("Specify --password or --key-file for verification")
                 return
 
             deep_check = getattr(args, 'deep', False)
@@ -70,7 +71,6 @@ def handle_vault_command(args, lang):
                     else:
                         print(f"\n✓ All checks passed - vault is healthy")
                 else:
-                    # Quick check - FIXED output
                     print(f"Files: {results.get('file_count', 0)}")
                     print(f"Header: {'✓ OK' if results.get('header_ok') else '✗ FAILED'}")
                     print(f"File Table: {'✓ OK' if results.get('file_table_ok') else '✗ FAILED'}")
@@ -81,7 +81,7 @@ def handle_vault_command(args, lang):
                         print(f"\n✗ Quick check failed - vault structure issues detected")
             else:
                 error_msg = results.get('message', 'Unknown verification error')
-                print(f"ERROR: {error_msg}")
+                print(f"{error_msg}")
             
             print("=" * 40)
         
@@ -92,7 +92,7 @@ def handle_vault_command(args, lang):
                 
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file")
+                print("Specify --password or --key-file")
                 return
 
             def debug_op(vault):
@@ -103,7 +103,7 @@ def handle_vault_command(args, lang):
             if result and result.get('status') == 'success':
                 print(f"Debug info logged for file: {args.file_path}")
             else:
-                print(f"ERROR: Failed to debug file")
+                print(f"Failed to debug file")
         
         elif args.vault_command == 'health':
             if not args.vault_name:
@@ -126,7 +126,7 @@ def handle_vault_command(args, lang):
                 
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file for storage info")
+                print("Specify --password or --key-file for storage info")
                 return
 
             storage_info = manager.check_vault_storage(args.vault_name, password, key)
@@ -140,7 +140,7 @@ def handle_vault_command(args, lang):
                 print(f"Usage: {storage_info.get('usage_percentage', 0):.1f}%")
                 print(f"Files: {storage_info.get('file_count', 0)}")
             else:
-                print(f"ERROR: {storage_info.get('message', 'Failed to get storage info')}")
+                print(f"{storage_info.get('message', 'Failed to get storage info')}")
             print("=" * 40)
         
         elif args.vault_command == 'secure-delete':
@@ -149,16 +149,35 @@ def handle_vault_command(args, lang):
                 return
                 
             if not manager.vault_exists(args.vault_name):
-                print(f"ERROR: Vault '{args.vault_name}' not found!")
+                print(f"Vault '{args.vault_name}' not found!")
                 return
                 
             confirm = input(f"SECURE DELETE vault '{args.vault_name}'? Type 'DELETE' to confirm: ")
             if confirm == 'DELETE':
                 success = manager.secure_vault_delete(args.vault_name)
                 if success:
-                    print(f"SUCCESS: Vault '{args.vault_name}' securely deleted")
+                    print(f"Vault '{args.vault_name}' securely deleted")
                 else:
-                    print(f"ERROR: Failed to delete vault")
+                    print(f"Failed to delete vault")
+            else:
+                print("Deletion cancelled.")
+        
+        elif args.vault_command == 'delete':
+            if not args.vault_name:
+                print("Usage: obfutil vault delete <vault_name>")
+                return
+                
+            if not manager.vault_exists(args.vault_name):
+                print(f"Vault '{args.vault_name}' not found!")
+                return
+                
+            confirm = input(f"DELETE vault '{args.vault_name}'? Type 'DELETE' to confirm: ")
+            if confirm == 'DELETE':
+                success = manager.secure_vault_delete(args.vault_name)
+                if success:
+                    print(f"Vault '{args.vault_name}' securely deleted")
+                else:
+                    print(f"Failed to delete vault")
             else:
                 print("Deletion cancelled.")
 
@@ -171,19 +190,19 @@ def handle_vault_command(args, lang):
                 
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file for creation")
+                print("Specify --password or --key-file for creation")
                 return
 
             size = args.size or 100
             if size < 1 or size > 1024:
-                print("ERROR: Size must be between 1MB and 1024MB")
+                print("Size must be between 1MB and 1024MB")
                 return
                 
             success = manager.create_vault(args.vault_name, size, password, key)
             if success:
-                print(f"SUCCESS: Vault '{args.vault_name}' created")
+                print(f"Vault '{args.vault_name}' created")
             else:
-                print(f"ERROR: Failed to create vault")
+                print(f"Failed to create vault")
         
         elif args.vault_command == 'list':
             vaults = manager.list_vaults()
@@ -200,8 +219,7 @@ def handle_vault_command(args, lang):
                 status = vault.get('status', 'UNKNOWN')
                 name = vault['name']
                 size = f"{vault.get('size_mb', 0)}MB"
-                files = vault.get('file_count', '?')  # Will show '?' if cannot access
-                health = vault.get('health', 'unknown')
+                files = vault.get('file_count', '?')
 
                 print(f"{status:<8} {name:<15} {size:<8} {files:<6}")
 
@@ -210,25 +228,42 @@ def handle_vault_command(args, lang):
 
         elif args.vault_command == 'info':
             if not args.vault_name:
-                print("ERROR: Vault name required")
+                print("Vault name required")
                 return
 
             exists = manager.vault_exists(args.vault_name)
             if not exists:
-                print(f"ERROR: Vault '{args.vault_name}' not found!")
+                print(f"Vault '{args.vault_name}' not found!")
                 return
 
             password, key = _get_auth_method(args, lang, logger)
             
             info = manager.get_vault_info(args.vault_name, password, key)
             if not info:
-                print(f"ERROR: Could not read vault info")
+                print(f"Could not read vault info")
                 return
 
             print(f"\n=== Vault Info: {args.vault_name} ===")
             print("=" * 50)
             print(f"Status: {info.get('status', 'UNKNOWN')}")
-            print(f"Created: {info.get('created_at', 'Unknown')}")
+            
+            # Улучшенный вывод даты
+            created_at = info.get('created_at', 'Unknown')
+            if created_at != 'Unknown':
+                print(f"Created: {created_at}")
+            else:
+                # Пробуем получить дату из файловой системы
+                try:
+                    vault_path = Path(manager.config[args.vault_name]['path'])
+                    if vault_path.exists():
+                        ctime = vault_path.stat().st_ctime
+                        created_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ctime))
+                        print(f"Created: {created_at} (from file system)")
+                    else:
+                        print(f"Created: {created_at}")
+                except:
+                    print(f"Created: {created_at}")
+            
             print(f"Size: {info.get('total_size_mb', 0)} MB")
             print(f"Used: {info.get('used_space_mb', 0)} MB")
             print(f"Free: {info.get('free_space_mb', 0)} MB")
@@ -237,8 +272,11 @@ def handle_vault_command(args, lang):
             files = info.get('files_list', [])
             if files:
                 print(f"\nFiles:")
-                for file_path in files:
+                max_files = 20
+                for i, file_path in enumerate(files[:max_files]):
                     print(f"  - {file_path}")
+                if len(files) > max_files:
+                    print(f"  ... and {len(files) - max_files} more files")
             print("=" * 50)
 
         elif args.vault_command == 'add':
@@ -249,14 +287,28 @@ def handle_vault_command(args, lang):
             internal_path = args.internal_path
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file")
+                print("Specify --password or --key-file")
+                return
+
+            source_file = Path(args.file_path)
+            if not source_file.exists():
+                print(f"Source file not found: {args.file_path}")
+                return
+
+            if not manager.vault_exists(args.vault_name):
+                print(f"Vault '{args.vault_name}' not found!")
+                print(f"Use 'obfutil vault list' to see available vaults")
                 return
 
             success = manager.add_file_to_vault(args.vault_name, args.file_path, internal_path, password, key, move=getattr(args, 'move', False))
             if success:
-                print(f"SUCCESS: File added to vault '{args.vault_name}'")
+                print(f"File added to vault '{args.vault_name}'")
             else:
-                print(f"ERROR: Failed to add file")
+                print(f"Failed to add file - possible reasons:")
+                print(f"  - Wrong password or key")
+                print(f"  - Vault is corrupted")
+                print(f"  - Not enough space in vault")
+                print(f"  - File already exists in vault")
 
         elif args.vault_command == 'extract':
             if not args.vault_name or not args.file_path or not args.internal_path:
@@ -265,41 +317,14 @@ def handle_vault_command(args, lang):
 
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file")
+                print("Specify --password or --key-file")
                 return
 
             success = manager.extract_file_from_vault(args.vault_name, args.file_path, args.internal_path, password, key)
             if success:
-                print(f"SUCCESS: File extracted from vault '{args.vault_name}'")
+                print(f"File extracted from vault '{args.vault_name}'")
             else:
-                print(f"ERROR: Failed to extract file")
-
-        elif args.vault_command == 'files':
-            if not args.vault_name:
-                print("ERROR: Vault name required")
-                return
-
-            password, key = _get_auth_method(args, lang, logger)
-            if password is None and key is None:
-                print("ERROR: Specify --password or --key-file")
-                return
-
-            if not manager.vault_exists(args.vault_name):
-                print(f"ERROR: Vault '{args.vault_name}' not found!")
-                return
-
-            files = manager.list_files_in_vault(args.vault_name, password, key)
-
-            if files is None:
-                print(f"ERROR: Failed to open vault - invalid password or corrupted")
-            elif not files:
-                print(f"No files in vault '{args.vault_name}'")
-            else:
-                print(f"\n=== Files in '{args.vault_name}' ===")
-                print("-" * 40)
-                for file_path in files:
-                    print(f"  {file_path}")
-                print(f"\nTotal: {len(files)} file(s)")
+                print(f"Failed to extract file")
 
         elif args.vault_command == 'remove':
             if not args.vault_name or not args.file_path:
@@ -308,57 +333,47 @@ def handle_vault_command(args, lang):
             
             password, key = _get_auth_method(args, lang, logger)
             if password is None and key is None:
-                print("ERROR: Specify --password or --key-file")
+                print("Specify --password or --key-file")
                 return
 
             success = manager.remove_file_from_vault(args.vault_name, args.file_path, password, key)
             if success:
-                print(f"SUCCESS: File removed from vault '{args.vault_name}'")
+                print(f"File removed from vault '{args.vault_name}'")
             else:
-                print(f"ERROR: Failed to remove file")
-
-        elif args.vault_command == 'delete':
-            if not args.vault_name:
-                print("Usage: obfutil vault delete <vault_name>")
-                return
-                
-            if not manager.vault_exists(args.vault_name):
-                print(f"ERROR: Vault '{args.vault_name}' not found!")
-                return
-                
-            confirm = input(f"Delete vault '{args.vault_name}'? [y/N]: ")
-            if confirm.lower() == 'y':
-                success = manager.delete_vault(args.vault_name)
-                if success:
-                    print(f"SUCCESS: Vault '{args.vault_name}' deleted")
-                else:
-                    print(f"ERROR: Failed to delete vault")
-            else:
-                print("Deletion cancelled.")
+                print(f"Failed to remove file")
         
         else:
-            print(f"ERROR: Unknown vault command: {args.vault_command}")
+            print(f"Unknown vault command: {args.vault_command}")
             show_vault_help(lang)
             
     except Exception as e:
         logger.error(f"Vault command error: {e}")
-        print(f"ERROR: {e}")
+        print(f"{e}")
+
 
 def _get_auth_method(args, lang, logger):
-    """Helper to get authentication method from args - FIXED VERSION"""
+    """Helper to get authentication method from args - with better error messages"""
     password = None
     key = None
     
-    # Check if password or key-file flags are present
     if hasattr(args, 'key_file') and args.key_file:
         try:
             key = load_key_from_file(DEFAULT_KEY_PATH)
             logger.debug("Using key file for authentication")
         except FileNotFoundError:
-            print(f"ERROR: Key file not found at {DEFAULT_KEY_PATH}")
+            print(f"Key file not found at {DEFAULT_KEY_PATH}")
             print("Generate a key first with: obfutil --gen-key")
+            print()
+            return None, None
+        except Exception as e:
+            print(f"Failed to load key file: {e}")
+            return None, None
     elif hasattr(args, 'password') and args.password:
-        password = input_password(get_translation(lang, "password_prompt"))
-        logger.debug("Using password for authentication")
+        try:
+            password = input_password(get_translation(lang, "password_prompt"))
+            logger.debug("Using password for authentication")
+        except Exception as e:
+            print(f"Failed to read password: {e}")
+            return None, None
     
     return password, key

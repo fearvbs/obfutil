@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="obfutil",
-    version="3.2",
-    packages=find_packages(),
+    version="3.3-fix",
+    packages=find_packages(include=['obfutil', 'obfutil.*']),
     install_requires=[
         "cryptography>=3.4",
         "astor>=0.8"

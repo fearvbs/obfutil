@@ -270,3 +270,17 @@ All notable changes to ObfUtil will be documented in this file.
 - Reduced memory footprint for large vault operations
 - Improved response time for vault health checks
 - Streamlined file addition process
+
+
+## V3.3-fix
+
+**Changed**
+- vault secure-delete renamed to delete
+
+**Fixed**
+- Some duplicates of functions
+- Some interface explanations were incorrect or not complete
+
+**Removed**
+- Health method due to its malfunction
+- Delete method due to its uselesness

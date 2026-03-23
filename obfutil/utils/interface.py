@@ -158,23 +158,23 @@ def show_configuration(config_data, lang: str = "en"):
     print("=" * 40)
 
 def show_vault_help(lang: str = "en"):
-    """Display vault help with V3.2 features"""
+    """
+    Display vault help
+    V3.3-fix: deleted legacy command 'files'
+    """
     t = localization.get_translation
     
     vault_commands = [
-        "vault create <name> [--size MB]",
+        "vault create <name> <--size> (Default MB)",
         "vault list",
-        "vault info <name>", 
-        "vault preview <name>",
+        "vault info <name> --password / --key-file", 
+        "vault preview <name> --password / --key-file",
         "vault verify <name> [--deep]",
-        "vault health <name>",
         "vault storage <name>",
-        "vault secure-delete <name>",
         "vault delete <name>",
-        "vault add <name> <file> [internal_path] [--move]",
-        "vault extract <name> <internal_path> <output_path>",
-        "vault remove <name> <internal_path>",
-        "vault files <name>"
+        "vault add <name> <file_name> [--move] --password / --key-file",
+        "vault extract <name> <file_name> <output_path> --password / --key-file",
+        "vault remove <name> <file_name> --password / --key_file"
     ]
     
     print("\n" + " " * 13 + t(lang, "vault_help_title"))
@@ -186,7 +186,8 @@ def show_vault_help(lang: str = "en"):
     print()
     print(t(lang, "vault_help_examples"))
     print(f"  obfutil vault create myvault --size 100 --password")
-    print(f"  obfutil vault preview myvault --password")
+    print(f"  obfutil vault preview myvault --password          # List files")
+    print(f"  obfutil vault info myvault --password             # Detailed info")
     print(f"  obfutil vault verify myvault --deep --key-file")
     print(f"  obfutil vault add myvault file.txt --password --move")
     print("=" * 40)

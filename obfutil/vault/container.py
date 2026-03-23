@@ -131,60 +131,34 @@ class VaultContainer:
             return self._read_header(data)
     
     def deep_integrity_check(self, password: str = None, key: bytes = None) -> Dict:
-        """Comprehensive vault integrity verification with detailed logging"""
+        """Comprehensive vault integrity verification - WITHOUT FILE HASH CHECKS"""
         try:
             self.log.info("Starting deep integrity check")
             
             if not self.is_open:
-                self.log.info("Vault not open, attempting to open...")
                 if not self.open(password, key):
-                    self.log.error("Failed to open vault for deep integrity check")
                     return {'status': 'error', 'message': 'Cannot open vault'}
-            
-            self.log.info(f"Vault opened successfully, checking {len(self.file_table)} files")
             
             results = {
                 'status': 'success',
                 'checks_passed': 0,
-                'checks_total': 2,
+                'checks_total': 2,  # Only 2 checks: header and file table
                 'overall_status': 'healthy',
-                'issues': []
+                'issues': [],
+                'files_checked': len(self.file_table)
             }
             
             # Check 1: Header integrity
-            self.log.info("Checking header integrity...")
-            header_ok = self._verify_header_integrity()
-            if header_ok:
+            if self._verify_header_integrity():
                 results['checks_passed'] += 1
-                self.log.info("Header integrity: PASSED")
             else:
                 results['issues'].append("Header integrity check failed")
-                self.log.error("Header integrity: FAILED")
             
             # Check 2: File table consistency  
-            self.log.info("Checking file table consistency...")
-            file_table_ok = self._verify_file_table_consistency()
-            if file_table_ok:
+            if self._verify_file_table_consistency():
                 results['checks_passed'] += 1
-                self.log.info("File table consistency: PASSED")
             else:
                 results['issues'].append("File table consistency check failed")
-                self.log.error("File table consistency: FAILED")
-            
-            # Check 3: File data integrity (if files exist)
-            if self.file_table:
-                self.log.info("Checking file data integrity...")
-                file_issues = self._verify_all_files_integrity()
-                results['checks_total'] += 1
-                results['files_checked'] = len(self.file_table)
-                results['file_issues'] = file_issues
-                
-                if not file_issues:
-                    results['checks_passed'] += 1
-                    self.log.info("File data integrity: PASSED")
-                else:
-                    results['issues'].append(f"{len(file_issues)} file(s) have integrity issues")
-                    self.log.error(f"File data integrity: FAILED - {len(file_issues)} issues")
             
             # Determine overall status
             if results['checks_passed'] == results['checks_total']:
@@ -194,46 +168,12 @@ class VaultContainer:
             else:
                 results['overall_status'] = 'corrupted'
             
-            self.log.info(f"Deep integrity check completed: {results['checks_passed']}/{results['checks_total']} checks passed")
             self.secure_close()
             return results
             
         except Exception as e:
             self.log.error(f"Deep integrity check error: {e}")
             return {'status': 'error', 'message': str(e)}
-
-    def _verify_all_files_integrity(self) -> List[str]:
-        """Verify integrity of all files in vault"""
-        issues = []
-        self.log.info(f"Verifying integrity of {len(self.file_table)} files")
-        
-        for internal_path, file_info in self.file_table.items():
-            try:
-                self.log.debug(f"Checking file: {internal_path}")
-                
-                # Check if file data is within bounds
-                end_offset = file_info['offset'] + file_info['size']
-                if end_offset > len(self.decrypted_data):
-                    issues.append(f"File out of bounds: {internal_path}")
-                    self.log.error(f"File out of bounds: {internal_path} (offset: {file_info['offset']}, size: {file_info['size']}, total: {len(self.decrypted_data)})")
-                    continue
-                
-                # Verify file hash
-                file_data = self.decrypted_data[
-                    file_info['offset']:file_info['offset'] + file_info['size']
-                ]
-                current_hash = self._calculate_hash(file_data)
-                if current_hash != file_info['hash']:
-                    issues.append(f"Hash mismatch: {internal_path}")
-                    self.log.error(f"Hash mismatch for {internal_path}")
-                    
-            except Exception as e:
-                error_msg = f"Verification failed for {internal_path}: {str(e)}"
-                issues.append(error_msg)
-                self.log.error(error_msg)
-        
-        self.log.info(f"File integrity check completed: {len(issues)} issues found")
-        return issues
     
     def _verify_header_integrity(self) -> bool:
         required_fields = ['version', 'size_bytes', 'created_at', 'file_count']
@@ -247,58 +187,9 @@ class VaultContainer:
             if info['size'] < 0 or info['offset'] < 0:
                 return False
         return True
-    
-    def _verify_all_files_integrity(self) -> List[str]:
-        """Verify integrity of files in vault"""
-        issues = []
-        self.log.info(f"Verifying integrity of {len(self.file_table)} files")
-        
-        for internal_path, file_info in self.file_table.items():
-            try:
-                self.log.debug(f"Checking file: {internal_path}")
-                
-                # Check if file data is within bounds
-                end_offset = file_info['offset'] + file_info['size']
-                if end_offset > len(self.decrypted_data):
-                    issues.append(f"File out of bounds: {internal_path}")
-                    continue
-                
-                # Extract the encrypted file data from vault
-                encrypted_file_data = self.decrypted_data[
-                    file_info['offset']:file_info['offset'] + file_info['size']
-                ]
-                
-                # Calculate hash of the ENCRYPTED data (as stored in vault)
-                current_hash = self._calculate_hash(encrypted_file_data)
-                expected_hash = file_info.get('hash')
-                
-                if not expected_hash:
-                    issues.append(f"No hash found for file: {internal_path}")
-                elif current_hash != expected_hash:
-                    issues.append(f"Hash mismatch: {internal_path}")
-                    self.log.error(f"Hash mismatch for {internal_path}: expected {expected_hash[:16]}..., got {current_hash[:16]}...")
-                else:
-                    self.log.debug(f"File integrity OK: {internal_path}")
-                    
-            except Exception as e:
-                error_msg = f"Verification failed for {internal_path}: {str(e)}"
-                issues.append(error_msg)
-                self.log.error(error_msg)
-        
-        return issues
-    
-    def _verify_storage_bounds(self) -> Tuple[bool, str]:
-        total_size = self.metadata.get('size_bytes', 0)
-        used_space = sum(f['size'] for f in self.file_table.values())
-        
-        if used_space > total_size:
-            return False, f"Storage overflow: {used_space} > {total_size} bytes"
-        
-        usage_percent = (used_space / total_size * 100) if total_size > 0 else 0
-        return True, f"Storage usage: {usage_percent:.1f}%"
 
     def open(self, password: str = None, key: bytes = None, quick_mode: bool = False) -> bool:
-        """Open existing vault - FIXED VERSION"""
+        """Open existing vault - with improved error reporting"""
         try:
             # Brute force protection
             current_time = time.time()
@@ -347,7 +238,7 @@ class VaultContainer:
                 else:
                     return self._load_file_table(decrypted)
             else:
-                self.log.error(f"Failed to open vault: invalid header")
+                self.log.error(f"Failed to open vault: invalid header - possibly wrong password or corrupted file")
                 self.failed_attempts += 1
                 self.last_attempt_time = time.time()
                 return False
@@ -388,7 +279,7 @@ class VaultContainer:
             return False
 
     def create(self, size_mb: int, password: str = None, key: bytes = None):
-        """Create new vault container - FIXED VERSION"""
+        """Create new vault container"""
         try:
             self.log.info(f"Creating vault container: {self.vault_path} ({size_mb}MB)")
             
@@ -396,7 +287,7 @@ class VaultContainer:
             
             current_time = time.time()
             self.metadata = {
-                'version': '1.0',  # Keep legacy version for compatibility
+                'version': '1.0',
                 'size_bytes': size_mb * 1024 * 1024,
                 'created_at': current_time,
                 'created_at_str': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -407,7 +298,7 @@ class VaultContainer:
             
             self.file_table = {}
             
-            # Use legacy header for now to ensure compatibility
+            # Use legacy header for compatibility
             header = self._create_header()
             file_table_data = self._save_file_table()
             
@@ -443,8 +334,6 @@ class VaultContainer:
             self.log.error(f"Failed to create vault container: {e}")
             return False
 
-    # ===== KEEP EXISTING METHODS =====
-    
     def _load_file_table(self, decrypted_data: bytes) -> bool:
         try:
             metadata_len = struct.unpack('>I', decrypted_data[:4])[0]
@@ -488,7 +377,7 @@ class VaultContainer:
         return hashlib.sha256(data).hexdigest()
 
     def add_file(self, file_path: Path, internal_path: str, password: str = None, key: bytes = None) -> bool:
-        """Add file to vault"""
+        """Add file to vault - with improved error handling"""
         try:
             if not file_path.exists():
                 self.log.error(f"Source file not found: {file_path}")
@@ -499,14 +388,13 @@ class VaultContainer:
 
             self.log.info(f"Adding file to vault: {internal_path} ({file_size} bytes)")
 
-            # Use placeholder hash - file hash checking disabled in V3.2
             self.file_table[internal_path] = {
                 'size': file_size,
                 'added_at': time.time(),
                 'original_name': file_path.name,
                 'internal_path': internal_path,
                 'offset': 0,
-                'hash': '0' * 64  # Placeholder
+                'hash': '0' * 64
             }
 
             self.metadata['file_count'] = len(self.file_table)
@@ -514,6 +402,11 @@ class VaultContainer:
             success = self._rewrite_vault_with_data(file_data, password, key)
             if success:
                 self.log.info(f"File {internal_path} added successfully to vault")
+            else:
+                # Rollback on failure
+                del self.file_table[internal_path]
+                self.metadata['file_count'] = len(self.file_table)
+                self.log.error(f"Failed to add file {internal_path}, rolled back")
             return success
 
         except Exception as e:
@@ -546,7 +439,7 @@ class VaultContainer:
             expected_hash = file_info['hash']
         
             if file_hash != expected_hash:
-                self.log.error(f"File integrity check failed")
+                self.log.error(f"File integrity check failed for {internal_path}")
                 return False
         
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -579,6 +472,8 @@ class VaultContainer:
             success = self._rewrite_vault_with_data(None, password, key)
             if success:
                 self.log.info(f"File {internal_path} removed successfully from vault")
+            else:
+                self.log.error(f"Failed to remove file {internal_path}")
             return success
             
         except Exception as e:
@@ -586,7 +481,7 @@ class VaultContainer:
             return False
 
     def _rewrite_vault_with_data(self, new_file_data: bytes = None, password: str = None, key: bytes = None) -> bool:
-        """Rewrite vault without hash updates"""
+        """Rewrite vault with improved error handling"""
         try:
             header = self._create_header()
             file_table_data = self._save_file_table()
@@ -633,7 +528,7 @@ class VaultContainer:
             available_space = current_size - total_used
         
             if available_space < 0:
-                self.log.error("Vault is full")
+                self.log.error(f"Vault is full. Need {abs(available_space)} more bytes")
                 return False
         
             vault_data = (
@@ -664,7 +559,7 @@ class VaultContainer:
         try:
             if not self.is_open:
                 if not self.open(password, key, quick_mode=True):
-                    return {'status': 'error', 'message': 'Failed to open vault'}
+                    return {'status': 'error', 'message': 'Failed to open vault - wrong password or corrupted'}
             
             preview = {
                 'status': 'success',
@@ -692,67 +587,9 @@ class VaultContainer:
         except Exception as e:
             self.log.error(f"Quick preview error: {e}")
             return {'status': 'error', 'message': str(e)}
-        
-    def deep_integrity_check(self, password: str = None, key: bytes = None) -> Dict:
-        """Comprehensive vault integrity verification - WITHOUT FILE HASH CHECKS"""
-        try:
-            self.log.info("Starting deep integrity check")
-            
-            if not self.is_open:
-                if not self.open(password, key):
-                    return {'status': 'error', 'message': 'Cannot open vault'}
-            
-            results = {
-                'status': 'success',
-                'checks_passed': 0,
-                'checks_total': 2,  # Only 2 checks: header and file table
-                'overall_status': 'healthy',
-                'issues': [],
-                'files_checked': len(self.file_table)
-            }
-            
-            # Check 1: Header integrity
-            if self._verify_header_integrity():
-                results['checks_passed'] += 1
-            else:
-                results['issues'].append("Header integrity check failed")
-            
-            # Check 2: File table consistency  
-            if self._verify_file_table_consistency():
-                results['checks_passed'] += 1
-            else:
-                results['issues'].append("File table consistency check failed")
-            
-            # Determine overall status
-            if results['checks_passed'] == results['checks_total']:
-                results['overall_status'] = 'healthy'
-            elif results['checks_passed'] >= results['checks_total'] * 0.7:
-                results['overall_status'] = 'degraded'
-            else:
-                results['overall_status'] = 'corrupted'
-            
-            self.secure_close()
-            return results
-            
-        except Exception as e:
-            self.log.error(f"Deep integrity check error: {e}")
-            return {'status': 'error', 'message': str(e)}
     
-    def _verify_header_integrity(self) -> bool:
-        """Verify header structure"""
-        required_fields = ['version', 'size_bytes', 'created_at', 'file_count']
-        return all(field in self.metadata for field in required_fields)
-
-    def _verify_file_table_consistency(self) -> bool:
-        """Verify file table structure"""
-        for path, info in self.file_table.items():
-            required = ['size', 'offset', 'hash', 'added_at']
-            if not all(field in info for field in required):
-                return False
-        return True
-
     def _create_header(self) -> bytes:
-        """Legacy method for compatibility - use _create_secure_header for new vaults"""
+        """Legacy method for compatibility"""
         try:
             metadata_json = json.dumps(self.metadata).encode('utf-8')
             header = struct.pack('>I', len(metadata_json)) + metadata_json
@@ -762,7 +599,7 @@ class VaultContainer:
             raise
 
     def _read_header(self, data: bytes) -> bool:
-        """Legacy method for compatibility - use _read_secure_header for new vaults"""
+        """Legacy method for compatibility"""
         try:
             metadata_len = struct.unpack('>I', data[:4])[0]
             metadata_json = data[4:4 + metadata_len]

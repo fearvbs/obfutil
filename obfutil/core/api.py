@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
-import os, time
+import time
+
+from obfutil.utils.logger import get_logger
 
 class ObfUtilAPI:
     def __init__(self):
