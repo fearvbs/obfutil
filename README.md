@@ -1,4 +1,3 @@
-## README.md (English Version)
 
 # ObfUtil - Advanced File Encryption & Obfuscation Tool
 
