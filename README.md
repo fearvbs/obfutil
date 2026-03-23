@@ -1,18 +1,41 @@
+## README.md (English Version)
 
 # ObfUtil - Advanced File Encryption & Obfuscation Tool
 
-
-
-![Version](https://img.shields.io/badge/version-3.2-blue)
+![Version](https://img.shields.io/badge/version-3.4-blue)
 ![Python](https://img.shields.io/badge/python-3.9+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Vault Commands](#-vault-commands) • [API](#-python-api) • [Changelog](CHANGELOG.md)
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-Basic-usage) • [Documentation](#-documentation) • [Changelog](CHANGELOG.md)
+## 📖 Table of Contents
 
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Encryption Commands](#-encryption-commands)
+- [Vault Commands](#-vault-commands)
+- [Integrity Protection](#-integrity-protection)
+- [Code Obfuscation](#-code-obfuscation)
+- [Python API](#-python-api)
+- [Configuration](#-configuration)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-### Installation
+## ✨ Features
+
+| Category | Features |
+|----------|----------|
+| **Encryption** | AES-256 encryption, Password/Key file support, HMAC integrity verification |
+| **Vaults** | Encrypted containers, File organization, Storage statistics, Disk usage by folder |
+| **Search** | Pattern matching, Extension search, Size filters, Case sensitivity |
+| **Obfuscation** | AST-based obfuscation, Variable renaming, String encryption, Anti-tamper |
+| **Batch Operations** | Multi-file encryption, Progress tracking, Speed statistics |
+| **Multi-language** | English, Russian, German |
+| **Security** | Secure memory cleanup, Brute force protection, Hash verification |
+
+## 📦 Installation
 
 ### From GitHub (Recommended)
 
@@ -25,176 +48,175 @@ cd obfutil
 pip install -e .
 ```
 
+### From PyPI
+
+```bash
+pip install obfutil
+```
+
 ### Verify Installation
 
 ```bash
-# Check if obfutil is available
 obfutil --help
-
-# Or using module syntax
-python -m obfutil.ui.cli.main --help
+obfutil vault --help
 ```
 
-### For End Users
+## 🚀 Quick Start
 
-If you just want to use ObfUtil without development:
+### Basic Encryption
 
 ```bash
-# Install directly from GitHub
-pip install git+https://github.com/fearvbs/obfutil.git
-```
+# Encrypt with password
+obfutil encrypt secret.txt --password
 
-### Dependencies
+# Decrypt and edit
+obfutil decrypt secret.txt.enc --password
 
-ObfUtil will automatically install:
-- `cryptography` - For AES-256 encryption
-- Other required Python standard library modules
-
----
-
-**Note**: The `-e` flag installs in "editable" mode, allowing you to modify the code while keeping the installation functional.
-
-## ✨ Features
-
-- **Secure Encryption** - AES-256 with password or keyfile protection
-- **Advanced Obfuscation** - Multi-layer Python code protection with anti-debugging
-- **Encrypted Vaults** - Secure containers for organizing multiple files
-- **Integrity Protection** - HMAC verification and tamper detection
-- **Multi-Language UI** - Full support for English, Russian, and German
-- **Batch Processing** - Encrypt/decrypt multiple files simultaneously
-- **System Analytics** - Real-time monitoring and usage statistics
-- **Unified Configuration** - All data stored in `~/.obfutil/` directory
-
-## 📖 Documentation
-
-### Core Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `encrypt` | Encrypt files | `obfutil encrypt file.txt --password` |
-| `decrypt` | Decrypt files | `obfutil decrypt file.enc --key-file` |
-| `view` | View encrypted content | `obfutil view file.enc --password` |
-| `obfuscate` | Obfuscate Python code | `obfutil obfuscate script.py` |
-| `status` | System status | `obfutil status` |
-| `config` | Configuration | `obfutil config --show` |
-
-### Vault Security Model
-```
-[HEADER][ENCRYPTED_METADATA][ENCRYPTED_FILE_TABLE][ENCRYPTED_FILE_DATA]
-```
-- **Full Container Encryption**: Entire vault is encrypted as a single unit
-- **Metadata Protection**: File names and structure are encrypted
-- **No Plaintext Leaks**: No sensitive information exposed in container format
-
-### Anti-Brute Force Measures
-```python
-# Exponential backoff for failed attempts
-if self.failed_attempts >= 3:
-    wait_time = (2 ** self.failed_attempts)  # 2, 4, 8, 16... seconds
-    time.sleep(wait_time)
-```
-
-## 🐍 Python API
-
-Integrate ObfUtil directly into your Python applications:
-
-```python
-from obfutil.core.api import api
-
-# File encryption
-result = api.encrypt_file("document.txt", password="secret")
-if result['success']:
-    print(f"Encrypted: {result['output_path']}")
-
-# Vault management
-vault_info = api.create_vault("project_data", size_mb=200, password="vault_pass")
-files_list = api.list_files_in_vault("project_data", password="vault_pass")
-
-# Batch operations
-stats = api.encrypt_files_batch(["file1.txt", "file2.doc"], password="secret")
-print(f"Processed: {stats['successful']}/{stats['processed']} files")
-
-# Code obfuscation
-result = api.obfuscate_python_code("script.py")
-```
-
-## 📁 Project Architecture
-
-```
-obfutil/
-├── core/
-│   ├── api.py              # Python API interface
-│   └── ...
-├── crypto/
-│   ├── encryption.py       # AES-256 encryption algorithms
-│   ├── integrity.py        # HMAC verification system
-│   └── ...
-├── obfuscation/
-│   └── core.py            # Multi-layer code obfuscation
-├── vault/
-│   ├── manager.py         # Vault management system
-│   ├── container.py       # Vault container logic
-│   ├── commands.py        # CLI commands handler
-│   └── ...
-├── utils/
-│   ├── localization.py    # Multi-language support
-│   ├── logger.py          # Logging system
-│   ├── file_utils.py      # File operations
-│   ├── interface.py       # User interface
-│   └── ...
-├── ui/cli/
-│   └── main.py           # Command-line interface
-└── config.py             # Configuration management
-```
-### Basic Usage
-
-```bash
-# Encrypt a file with password
-obfutil encrypt document.txt --password
-
-# Decrypt and edit file
-obfutil decrypt document.txt.enc --password
-
-# Obfuscate Python code
-obfutil obfuscate script.py
-
-# Create encrypted vault
-obfutil vault create my_vault --size 100 --password
+# View encrypted content
+obfutil view secret.txt.enc --password
 ```
 
 ### Vault Operations
 
-Vaults are encrypted containers that can store multiple files with unified access control.
-
 ```bash
 # Create a vault
-obfutil vault create my_docs --size 100 --password
+obfutil vault create mydocs --size 100 --password
 
-# List all existing vaults
-obfutil vault list
+# Add files
+obfutil vault add mydocs document.pdf --password
 
-# Add files to vault
-obfutil vault add my_docs document.pdf --password
+# List contents
+obfutil vault preview mydocs --password
 
-# Add files to vault with deletion of original file
-obfutil vault add my_docs document.pdf --password --move
-
-# List vault contents
-obfutil vault files my_docs --password
-
-# Extract files
-obfutil vault extract my_docs document.pdf ./extracted.pdf --password
-
-# Basic vault information
-obfutil vault info my_docs
-
-# Advanced vault information
-obfutil vault info my_docs --password
+# Extract file
+obfutil vault extract mydocs document.pdf ./output.pdf --password
 ```
 
-### Advanced Features
+## 🔐 Encryption Commands
 
-**Integrity Protection:**
+### Password-Based Encryption
+
+```bash
+# Encrypt
+obfutil encrypt file.txt --password
+
+# Decrypt with editing
+obfutil decrypt file.txt.enc --password
+
+# View only
+obfutil view file.txt.enc --password
+```
+
+### Key File Encryption
+
+```bash
+# Generate key file
+obfutil --gen-key
+
+# Encrypt with key
+obfutil encrypt file.txt --key-file
+
+# Decrypt with key
+obfutil decrypt file.txt.enc --key-file
+```
+
+### Batch Operations
+
+```bash
+# Encrypt all text files
+obfutil batch-encrypt *.txt --password
+
+# Decrypt all encrypted files
+obfutil batch-decrypt *.enc --password
+```
+
+## 📁 Vault Commands
+
+Vaults are encrypted containers that store multiple files with unified access control.
+
+### Vault Management
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `create` | Create new vault | `obfutil vault create myvault --size 100 --password` |
+| `list` | List all vaults | `obfutil vault list` |
+| `info` | Vault information | `obfutil vault info myvault --password` |
+| `delete` | Securely delete vault | `obfutil vault delete myvault` |
+
+### File Operations
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `add` | Add file to vault | `obfutil vault add myvault file.txt --password` |
+| `extract` | Extract file from vault | `obfutil vault extract myvault file.txt ./out.txt --password` |
+| `remove` | Remove file from vault | `obfutil vault remove myvault file.txt --password` |
+| `rename` | Rename file in vault | `obfutil vault rename myvault old.txt new.txt --password` |
+
+### Advanced Commands (New in 3.4)
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `stats` | Detailed statistics | `obfutil vault stats myvault --password` |
+| `du` | Disk usage by folder | `obfutil vault du myvault --password` |
+| `search` | Search files | `obfutil vault search myvault "*.pdf" --password` |
+| `preview` | Quick file list | `obfutil vault preview myvault --password` |
+| `verify` | Integrity check | `obfutil vault verify myvault --deep --password` |
+| `storage` | Storage usage | `obfutil vault storage myvault --password` |
+
+### Add Command Options
+
+```bash
+# Add with custom internal path
+obfutil vault add myvault file.txt docs/file.txt --password
+
+# Add and delete original (move)
+obfutil vault add myvault file.txt --password --move
+
+# Overwrite existing file
+obfutil vault add myvault file.txt --password --force
+```
+
+### Search Filters
+
+```bash
+# Search by pattern
+obfutil vault search myvault "*.pdf" --password
+
+# Search by extension
+obfutil vault search myvault "jpg" --type ext --password
+
+# Search by substring
+obfutil vault search myvault "secret" --type contains --password
+
+# Search with size filters
+obfutil vault search myvault "*.mp4" --min-size 10 --max-size 100 --password
+
+# Case-sensitive search
+obfutil vault search myvault "README" --case --password
+```
+
+### Statistics Output Example
+
+```
+=== Vault Statistics: myvault ===
+==================================================
+Total Files:    47
+Total Size:     128.5 MB
+Average Size:   2.7 MB
+
+Largest File:   video.mp4 (45.2 MB)
+Oldest File:    config.ini (2024-01-15)
+Newest File:    report.pdf (2026-03-23)
+
+File Types:
+  .pdf    12 files   45.2 MB  ████████████████░░░░░░░░░░░░░░
+  .jpg     8 files   32.1 MB  ████████████░░░░░░░░░░░░░░░░░░
+  .txt    15 files    0.8 MB  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  .mp4     1 file    45.2 MB  ████████████████░░░░░░░░░░░░░░
+```
+
+## 🛡️ Integrity Protection
+
 ```bash
 # Encrypt with integrity check
 obfutil encrypt-int sensitive.doc --password
@@ -206,70 +228,114 @@ obfutil verify-int sensitive.doc.enc --password
 obfutil decrypt-int sensitive.doc.enc --password
 ```
 
-**Batch Processing:**
-```bash
-# Encrypt all text files
-obfutil batch-encrypt *.txt --password
+## 🔧 Code Obfuscation
 
-# Decrypt all encrypted files
-obfutil batch-decrypt *.enc --key-file
+```bash
+# Obfuscate Python script
+obfutil obfuscate script.py
+
+# Output: script_obf.py
 ```
 
-**Key Management:**
-```bash
-# Generate encryption key 
-obfutil --gen-key
+Obfuscation features:
+- Variable name randomization
+- String encryption
+- Code shredding
+- Anti-tamper protection
+- Junk code injection
 
-# Generate strong password
+## 🐍 Python API
+
+```python
+from obfutil.core.api import api
+
+# File encryption
+result = api.encrypt_file("document.txt", password="secret")
+if result['success']:
+    print(f"Encrypted: {result['output_path']}")
+
+# Vault operations
+api.create_vault("myvault", size_mb=100, password="vaultpass")
+api.add_file_to_vault("myvault", "file.txt", password="vaultpass")
+
+# Get statistics
+stats = api.get_vault_statistics("myvault", password="vaultpass")
+print(f"Files: {stats['total_files']}, Size: {stats['total_size_mb']} MB")
+
+# Search files
+files = api.search_files_in_vault("myvault", "*.pdf", password="vaultpass")
+for file in files:
+    print(f"Found: {file['path']} ({file['size_kb']} KB)")
+
+# Batch operations
+result = api.encrypt_files_batch(["file1.txt", "file2.txt"], password="secret")
+print(f"Processed: {result['successful']}/{result['processed']} files")
+```
+
+## ⚙️ Configuration
+
+All data is stored in `~/.obfutil/`:
+
+```
+~/.obfutil/
+├── config.ini          # User configuration
+├── vaults/             # Encrypted vault files
+│   ├── myvault.obfvault
+│   └── vaults.json     # Vault registry
+├── logs/               # Operation logs
+│   └── program.log
+└── secret.key          # Encryption key (if generated)
+```
+
+### Configuration Commands
+
+```bash
+# Show current configuration
+obfutil config --show
+
+# Change language
+obfutil config --lang ru     # Russian
+obfutil config --lang de     # German
+obfutil config --lang en     # English
+
+# Generate password
 obfutil --gen-pass 16
+
+# Generate key file
+obfutil --gen-key
 ```
 
-**Multi-language Support:**
-```bash
-obfutil --lang ru    # Russian
-obfutil --lang de    # German
-obfutil --lang en    # English
-```
-
-## ❓ Troubleshooting
-
-**Common issues:**
-- Permission errors: Ensure write access to `~/.obfutil/`
-- Installation issues: Try `pip install --upgrade pip`
-- Command not found: Verify Python Scripts directory is in PATH
-
-## 🎯 Use Cases
-
-- **Developers**: Protect intellectual property with code obfuscation
-- **Business**: Secure sensitive documents and confidential data
-- **Individuals**: Personal file encryption and privacy protection
-- **Organizations**: Centralized secure storage with access control
-- **Teams**: Shared encrypted vaults for project collaboration
-## 🔧 System Requirements
+## 🖥️ System Requirements
 
 - **Python**: 3.9 or higher
+- **Dependencies**: cryptography, astor
 - **Platform**: Windows, Linux, macOS
-- **Dependencies**: all Dependencies can be found in `requirements.txt`
 - **Storage**: ~/.obfutil/ directory with write permissions
-## 🆘 Related
 
-- 📚 **Documentation**: Check the `docs/` directory for detailed guides
-- 🐛 **Issues**: Report bugs on the [Issue Tracker](https://github.com/fearvbs/obfutil/issues)
-- 💬 **Discussions**: Join conversations on our [Discussions](https://github.com/fearvbs/obfutil/discussions) page
-- 🔄 **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for version history
-
----
 ## 🤝 Contributing
 
-We welcome contributions! Please feel free to submit pull requests, report bugs, or suggest new features.
-
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
-P.S.: I'd love to upload all previous versions of obfUtil but I'm too lazy to do so.
+---
+
+## 🌟 Version 3.4 Highlights
+
+- 📊 **`vault stats`** - Detailed file statistics and type distribution
+- 🔍 **`vault search`** - Powerful search with size and type filters
+- 📁 **`vault du`** - Disk usage analysis by folder
+- ✏️ **`vault rename`** - Rename files inside vaults
+- ⚡ **`--force`** - Overwrite existing files
+- 🛡️ **Improved hash verification** - Fixed after rename operations
+- 🌐 **Better error messages** - Actionable suggestions
+
+---
+
+*For full changelog, see [CHANGELOG.md](CHANGELOG.md)*

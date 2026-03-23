@@ -1,5 +1,13 @@
+"""
+User Interface Module - Handles all UI output
+Version 3.4: Updated with new vault commands:
+- search, rename, du, stats
+- Improved help formatting
+"""
+
 import obfutil.utils.localization as localization
 from obfutil.config import VERSION
+
 
 def show_menu(lang: str = "en"):
     """Display main menu in command-style format"""
@@ -50,7 +58,9 @@ def show_menu(lang: str = "en"):
     for label, example in examples:
         print(f"    {label:<30} {example}")
 
+
 def show_example_cmds(lang: str = "en"):
+    """Show complete usage examples"""
     t = localization.get_translation
     
     print(t(lang, "examples_title"))
@@ -80,7 +90,12 @@ def show_example_cmds(lang: str = "en"):
             ("obfutil vault create myvault --size 100 --password", t(lang, "vault_create_pass")),
             ("obfutil vault create bigvault --size 500 --key-file", t(lang, "vault_create_key")),
             ("obfutil vault list", t(lang, "vault_list")),
-            ("obfutil vault info myvault", t(lang, "vault_info"))
+            ("obfutil vault info myvault", t(lang, "vault_info")),
+            ("obfutil vault stats myvault --password", "Show detailed statistics"),
+            ("obfutil vault du myvault --password", "Show disk usage by folder"),
+            ("obfutil vault search myvault \"*.pdf\" --password", "Search files by pattern"),
+            ("obfutil vault rename myvault old.txt new.txt --password", "Rename files"),
+            ("obfutil vault add myvault file.txt --password --force", "Add with overwrite")
         ]),
         (t(lang, "decryption_viewing"), [
             ("obfutil decrypt file.enc --password", t(lang, "decrypt_edit_pass")),
@@ -103,8 +118,9 @@ def show_example_cmds(lang: str = "en"):
         for cmd, desc in commands:
             print(f"    {cmd:<45} {desc}")
 
+
 def show_system_status(status_data, lang: str = "en"):
-    """Display system status in status-style format"""
+    """Display system status"""
     t = localization.get_translation
     
     if not status_data.get('success'):
@@ -122,6 +138,7 @@ def show_system_status(status_data, lang: str = "en"):
     print(f"Logs Size: {status.get('logs_size_mb', 'N/A')} MB")
     print("=" * 40)
 
+
 def show_configuration(config_data, lang: str = "en"):
     """Display configuration with proper paths"""
     t = localization.get_translation
@@ -133,7 +150,7 @@ def show_configuration(config_data, lang: str = "en"):
     config = config_data['config']
     
     print("\n" + " " * 13 + t(lang, "configuration"))
-    print("=" * 40)
+    print("=" * 50)
     print(f"{t(lang, 'current_language')}: {config.get('language', 'N/A')}")
     print(f"{t(lang, 'version_title')}: {config.get('version', 'N/A')}")
     print(f"{t(lang, 'encryption_method')}: {config.get('encryption_method', 'N/A')}")
@@ -146,52 +163,85 @@ def show_configuration(config_data, lang: str = "en"):
         print(f"  Key File: {paths.get('key_file', 'N/A')}")
         print(f"  Logs: {paths.get('logs_directory', 'N/A')}")
         print(f"  Vaults: {paths.get('vaults_directory', 'N/A')}")
+        print(f"  App Data: {paths.get('app_data_directory', 'N/A')}")
     
     # Show status
     if 'directories_status' in config:
         status = config['directories_status']
         print(f"\n{t(lang, 'status')}:")
-        print(f"  {t(lang, 'cfg_file_cfg')}: {'✓ ' + t(lang, 'exists') if status.get('config_file_exists') else '✗ ' + t(lang, 'not_found')}")
-        print(f"  {t(lang, 'logs_dir')}: {'✓ ' + t(lang, 'exists') if status.get('logs_directory_exists') else '✗ ' + t(lang, 'not_found')}")
-        print(f"  {t(lang, 'vaults_dir')}: {'✓ ' + t(lang, 'exists') if status.get('vaults_directory_exists') else '✗ ' + t(lang, 'not_found')}")
+        status_icon = 'OK' if status.get('config_file_exists') else 'X'
+        print(f"  Config file: {status_icon} {t(lang, 'exists') if status.get('config_file_exists') else t(lang, 'not_found')}")
+        status_icon = 'OK' if status.get('logs_directory_exists') else 'X'
+        print(f"  Logs directory: {status_icon} {t(lang, 'exists') if status.get('logs_directory_exists') else t(lang, 'not_found')}")
+        status_icon = 'OK' if status.get('vaults_directory_exists') else 'X'
+        print(f"  Vaults directory: {status_icon} {t(lang, 'exists') if status.get('vaults_directory_exists') else t(lang, 'not_found')}")
     
-    print("=" * 40)
+    print("=" * 50)
+
 
 def show_vault_help(lang: str = "en"):
-    """
-    Display vault help
-    V3.3-fix: deleted legacy command 'files'
-    """
+    """Display vault help with V3.4 features"""
     t = localization.get_translation
     
     vault_commands = [
-        "vault create <name> <--size> (Default MB)",
-        "vault list",
-        "vault info <name> --password / --key-file", 
-        "vault preview <name> --password / --key-file",
-        "vault verify <name> [--deep]",
-        "vault storage <name>",
-        "vault delete <name>",
-        "vault add <name> <file_name> [--move] --password / --key-file",
-        "vault extract <name> <file_name> <output_path> --password / --key-file",
-        "vault remove <name> <file_name> --password / --key_file"
+        ("create", "vault create <name> [--size MB]", "Create a new encrypted vault"),
+        ("list", "vault list", "List all existing vaults"),
+        ("info", "vault info <name>", "Show detailed vault information"),
+        ("preview", "vault preview <name>", "Show files and metadata (quick view)"),
+        ("stats", "vault stats <name>", "Show detailed vault statistics"),
+        ("du", "vault du <name>", "Show disk usage by folder"),
+        ("search", "vault search <name> <pattern> [--type name|ext|contains] [--min-size MB] [--max-size MB]", "Search files by pattern"),
+        ("rename", "vault rename <name> <old> <new>", "Rename a file inside vault"),
+        ("verify", "vault verify <name> [--deep]", "Verify vault integrity"),
+        ("storage", "vault storage <name>", "Show storage usage"),
+        ("add", "vault add <name> <file> [internal_path] [--move] [--force]", "Add file to vault"),
+        ("extract", "vault extract <name> <internal_path> <output_path>", "Extract file from vault"),
+        ("remove", "vault remove <name> <internal_path>", "Remove file from vault"),
+        ("delete", "vault delete <name>", "Securely delete entire vault")
     ]
     
-    print("\n" + " " * 13 + t(lang, "vault_help_title"))
-    print("=" * 40)
-    print(t(lang, "vault_help_usage"))
+    print("\n" + " " * 13 + "OBFUTIL VAULT - ENCRYPTED FILE CONTAINERS")
+    print("=" * 65)
+    print("Usage: obfutil vault <command> [options]")
     print()
-    for cmd in vault_commands:
-        print(f"  {cmd}")
+    print("COMMANDS:")
+    print("-" * 65)
+    
+    for cmd_name, cmd_syntax, cmd_desc in vault_commands:
+        # Split syntax for better formatting
+        print(f"  {cmd_syntax}")
+        print(f"      {cmd_desc}")
+        print()
+    
+    print("AUTHENTICATION:")
+    print("-" * 65)
+    print("  --password              Use password encryption (will prompt)")
+    print("  --key-file              Use key file encryption (requires --gen-key first)")
     print()
-    print(t(lang, "vault_help_examples"))
-    print(f"  obfutil vault create myvault --size 100 --password")
-    print(f"  obfutil vault preview myvault --password          # List files")
-    print(f"  obfutil vault info myvault --password             # Detailed info")
-    print(f"  obfutil vault verify myvault --deep --key-file")
-    print(f"  obfutil vault add myvault file.txt --password --move")
-    print("=" * 40)
-
+    
+    print("EXAMPLES:")
+    print("-" * 65)
+    print("  # Create a 100MB vault with password")
+    print("  obfutil vault create myvault --size 100 --password")
+    print()
+    print("  # Add a file (with overwrite if exists)")
+    print("  obfutil vault add myvault document.pdf --password --force")
+    print()
+    print("  # Search for PDF files larger than 1MB")
+    print("  obfutil vault search myvault \"*.pdf\" --min-size 1 --password")
+    print()
+    print("  # Show detailed statistics")
+    print("  obfutil vault stats myvault --password")
+    print()
+    print("  # Check disk usage by folder")
+    print("  obfutil vault du myvault --password")
+    print()
+    print("  # Verify integrity with deep check")
+    print("  obfutil vault verify myvault --deep --password")
+    print()
+    print("  # Securely delete vault")
+    print("  obfutil vault delete myvault")
+    print("=" * 65)
 
 
 def show_batch_stats(batch_data, lang: str = "en"):
@@ -203,7 +253,7 @@ def show_batch_stats(batch_data, lang: str = "en"):
         return
         
     print("\n" + " " * 13 + "BATCH STATISTICS")
-    print("=" * 40)
+    print("=" * 50)
     print(f"{t(lang, 'batch_stats_files')}: {batch_data['processed']}")
     print(f"{t(lang, 'batch_stats_successful')}: {batch_data['successful']}")
     print(f"{t(lang, 'batch_stats_failed')}: {batch_data['failed']}")
@@ -211,7 +261,8 @@ def show_batch_stats(batch_data, lang: str = "en"):
     print(f"{t(lang, 'batch_stats_processed_size')}: {batch_data['processed_size_mb']} MB")
     print(f"{t(lang, 'batch_stats_processing_time')}: {batch_data['processing_time_seconds']} {t(lang, 'seconds')}")
     print(f"{t(lang, 'batch_stats_speed')}: {batch_data['average_speed_mb_s']} MB/s")
-    print("=" * 40)
+    print("=" * 50)
+
 
 def show_vault_analysis(analysis_data, lang: str = "en"):
     """Display vault usage analysis"""
@@ -225,23 +276,23 @@ def show_vault_analysis(analysis_data, lang: str = "en"):
     vault_name = analysis_data['vault_name']
     
     print("\n" + " " * 13 + f"VAULT ANALYSIS: {vault_name}")
-    print("=" * 40)
+    print("=" * 55)
     print(f"{t(lang, 'total_files')}: {analysis['total_files']}")
     print(f"{t(lang, 'total_size')}: {analysis['total_size_mb']} MB")
     print(f"{t(lang, 'vault_capacity')}: {analysis['capacity_mb']} MB")
     print(f"{t(lang, 'vault_used_space')}: {analysis['used_space_mb']} MB ({analysis['usage_percentage']}%)")
     print(f"{t(lang, 'vault_free_space')}: {analysis['free_space_mb']} MB")
     
-    # Самый большой файл
+    # Largest file
     largest = analysis.get('largest_file', {})
     if largest:
         print(f"{t(lang, 'vault_largest_file')}: {largest.get('name', '')} ({largest.get('size_mb', 0)} MB)")
     
-    # Типы файлов
+    # File types
     file_types = analysis.get('file_types', {})
     if file_types:
         print(f"\n{t(lang, 'vault_file_types')}:")
         for ext, count in sorted(file_types.items(), key=lambda x: x[1], reverse=True)[:5]:
             print(f"  .{ext}: {count} files")
     
-    print("=" * 40)
+    print("=" * 55)

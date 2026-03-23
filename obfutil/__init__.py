@@ -1,4 +1,4 @@
-__version__ = "3.3-fix"
+__version__ = "3.4"
 __author__ = "ObfUtil Team"
 
 from obfutil.core.api import api, ObfUtilAPI

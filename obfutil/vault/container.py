@@ -1,3 +1,8 @@
+"""
+Vault Container - Core encrypted container logic
+Version 3.4 - Fixed rename with stored credentials
+"""
+
 import os
 import json
 import struct
@@ -6,6 +11,7 @@ import hashlib
 import hmac
 import ctypes
 import gc
+import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -13,9 +19,10 @@ from obfutil.crypto.encryption import encrypt_data, decrypt_data
 from obfutil.utils.logger import get_logger
 from obfutil.config import VAULTS_DIR
 
+
 class VaultContainer:
     """
-    Secure encrypted container for file storage with V3.2 enhancements
+    Secure encrypted container for file storage with V3.4 enhancements
     """
     
     def __init__(self, vault_path: str):
@@ -34,6 +41,12 @@ class VaultContainer:
         self.last_attempt_time = 0
         self._header_hmac_key = None
         
+        # Store credentials for later operations (rename, remove, etc.)
+        self._current_password = None
+        self._current_key = None
+
+    # ========== SECURITY METHODS ==========
+    
     def secure_memory_cleanup(self):
         """Securely wipe sensitive data from memory"""
         try:
@@ -55,6 +68,10 @@ class VaultContainer:
                     ctypes.memset(ctypes.addressof(ctypes.c_char.from_buffer(buffer)), 0, len(buffer))
                 self._header_hmac_key = None
             
+            # Clear stored credentials
+            self._current_password = None
+            self._current_key = None
+            
             gc.collect()
             
         except Exception as e:
@@ -66,132 +83,11 @@ class VaultContainer:
         self.is_open = False
         self.log.info("Vault securely closed")
 
-    def _create_secure_header(self, encryption_key: bytes) -> bytes:
-        """Create vault header with HMAC integrity protection"""
-        try:
-            self.metadata.update({
-                'header_nonce': os.urandom(8).hex(),
-                'created_timestamp': time.time(),
-                'version': '1.2',
-                'integrity_protected': True
-            })
-            
-            metadata_json = json.dumps(self.metadata, sort_keys=True).encode('utf-8')
-            
-            hmac_signature = hmac.new(
-                encryption_key, 
-                metadata_json, 
-                hashlib.sha256
-            ).digest()[:12]
-            
-            header = (
-                struct.pack('>I', len(metadata_json)) +
-                metadata_json +
-                hmac_signature
-            )
-            
-            return header
-            
-        except Exception as e:
-            self.log.error(f"Failed to create secure header: {e}")
-            raise
+    # ========== VAULT OPEN/CLOSE ==========
     
-    def _read_secure_header(self, data: bytes, encryption_key: bytes) -> bool:
-        """Read and verify integrity of secure header with backward compatibility"""
-        try:
-            # Try new secure header format first
-            if len(data) >= 16:
-                metadata_len = struct.unpack('>I', data[:4])[0]
-                total_header_size = 4 + metadata_len + 12
-                
-                if len(data) >= total_header_size:
-                    metadata_json = data[4:4 + metadata_len]
-                    received_hmac = data[4 + metadata_len:total_header_size]
-                    
-                    calculated_hmac = hmac.new(
-                        encryption_key,
-                        metadata_json,
-                        hashlib.sha256
-                    ).digest()[:12]
-                    
-                    if hmac.compare_digest(calculated_hmac, received_hmac):
-                        # Successfully read secure header
-                        self.metadata = json.loads(metadata_json.decode('utf-8'))
-                        self._header_hmac_key = encryption_key[:16]
-                        self.log.info("Secure header verified successfully")
-                        return True
-            
-            # Fallback to legacy header format for backward compatibility
-            self.log.warning("Falling back to legacy header format")
-            return self._read_header(data)
-            
-        except Exception as e:
-            self.log.error(f"Failed to read secure header: {e}")
-            # Try legacy format as last resort
-            return self._read_header(data)
-    
-    def deep_integrity_check(self, password: str = None, key: bytes = None) -> Dict:
-        """Comprehensive vault integrity verification - WITHOUT FILE HASH CHECKS"""
-        try:
-            self.log.info("Starting deep integrity check")
-            
-            if not self.is_open:
-                if not self.open(password, key):
-                    return {'status': 'error', 'message': 'Cannot open vault'}
-            
-            results = {
-                'status': 'success',
-                'checks_passed': 0,
-                'checks_total': 2,  # Only 2 checks: header and file table
-                'overall_status': 'healthy',
-                'issues': [],
-                'files_checked': len(self.file_table)
-            }
-            
-            # Check 1: Header integrity
-            if self._verify_header_integrity():
-                results['checks_passed'] += 1
-            else:
-                results['issues'].append("Header integrity check failed")
-            
-            # Check 2: File table consistency  
-            if self._verify_file_table_consistency():
-                results['checks_passed'] += 1
-            else:
-                results['issues'].append("File table consistency check failed")
-            
-            # Determine overall status
-            if results['checks_passed'] == results['checks_total']:
-                results['overall_status'] = 'healthy'
-            elif results['checks_passed'] >= results['checks_total'] * 0.7:
-                results['overall_status'] = 'degraded'
-            else:
-                results['overall_status'] = 'corrupted'
-            
-            self.secure_close()
-            return results
-            
-        except Exception as e:
-            self.log.error(f"Deep integrity check error: {e}")
-            return {'status': 'error', 'message': str(e)}
-    
-    def _verify_header_integrity(self) -> bool:
-        required_fields = ['version', 'size_bytes', 'created_at', 'file_count']
-        return all(field in self.metadata for field in required_fields)
-    
-    def _verify_file_table_consistency(self) -> bool:
-        for path, info in self.file_table.items():
-            required = ['size', 'offset', 'hash', 'added_at']
-            if not all(field in info for field in required):
-                return False
-            if info['size'] < 0 or info['offset'] < 0:
-                return False
-        return True
-
     def open(self, password: str = None, key: bytes = None, quick_mode: bool = False) -> bool:
-        """Open existing vault - with improved error reporting"""
+        """Open existing vault and store credentials for later use"""
         try:
-            # Brute force protection
             current_time = time.time()
             if self.failed_attempts >= 3:
                 time_since_last_attempt = current_time - self.last_attempt_time
@@ -226,19 +122,22 @@ class VaultContainer:
 
             self.decrypted_data = decrypted
                 
-            # Use legacy header reading for compatibility
             success = self._read_header(decrypted)
             if success:
                 self.log.info(f"Vault opened successfully")
                 self.is_open = True
                 self.failed_attempts = 0
                 
+                # Store credentials for later operations
+                self._current_password = password
+                self._current_key = key
+                
                 if quick_mode:
                     return self._load_file_table_metadata_only(decrypted)
                 else:
                     return self._load_file_table(decrypted)
             else:
-                self.log.error(f"Failed to open vault: invalid header - possibly wrong password or corrupted file")
+                self.log.error(f"Failed to open vault: invalid header")
                 self.failed_attempts += 1
                 self.last_attempt_time = time.time()
                 return False
@@ -247,35 +146,6 @@ class VaultContainer:
             self.log.error(f"Error opening vault: {e}")
             self.failed_attempts += 1
             self.last_attempt_time = time.time()
-            return False
-
-    def _load_file_table_metadata_only(self, decrypted_data: bytes) -> bool:
-        """Load only file table metadata without processing file data"""
-        try:
-            # Use legacy header format
-            metadata_len = struct.unpack('>I', decrypted_data[:4])[0]
-            header_size = 4 + metadata_len
-            
-            file_table_size = struct.unpack('>I', decrypted_data[header_size:header_size+4])[0]
-            file_table_start = header_size + 4
-            file_table_end = file_table_start + file_table_size
-            file_table_json = decrypted_data[file_table_start:file_table_end]
-            
-            self.file_data_offset = file_table_end
-            
-            if file_table_json:
-                file_table_data = json.loads(file_table_json.decode('utf-8'))
-                self.file_table = file_table_data.get('files', {})
-                self.log.info(f"Loaded file table with {len(self.file_table)} files (metadata only)")
-                return True
-            else:
-                self.file_table = {}
-                self.log.info("File table is empty")
-                return True
-                
-        except Exception as e:
-            self.log.error(f"Failed to load file table metadata: {e}")
-            self.file_table = {}
             return False
 
     def create(self, size_mb: int, password: str = None, key: bytes = None):
@@ -297,8 +167,6 @@ class VaultContainer:
             }
             
             self.file_table = {}
-            
-            # Use legacy header for compatibility
             header = self._create_header()
             file_table_data = self._save_file_table()
             
@@ -327,6 +195,13 @@ class VaultContainer:
                 encrypted = encrypt_data(vault_data, password=password)
                 
             self.vault_path.write_bytes(encrypted)
+            
+            # Store credentials
+            self._current_password = password
+            self._current_key = key
+            self.is_open = True
+            self.decrypted_data = vault_data
+            
             self.log.info(f"Vault container created successfully: {self.vault_path}")
             return True
             
@@ -334,7 +209,459 @@ class VaultContainer:
             self.log.error(f"Failed to create vault container: {e}")
             return False
 
+    # ========== FILE OPERATIONS ==========
+    
+    def add_file(self, file_path: Path, internal_path: str, password: str = None, 
+                 key: bytes = None, force: bool = False) -> bool:
+        """Add file to vault with space check and force option"""
+        try:
+            if not file_path.exists():
+                self.log.error(f"Source file not found: {file_path}")
+                return False
+            
+            file_data = file_path.read_bytes()
+            file_size = len(file_data)
+            
+            # Check if file already exists
+            if internal_path in self.file_table:
+                if not force:
+                    self.log.error(f"File already exists: {internal_path}")
+                    return False
+                else:
+                    self.log.warning(f"Overwriting existing file: {internal_path}")
+            
+            # Check available space
+            has_space, free_space = self.check_space_available(file_size, internal_path if force else None)
+            if not has_space:
+                self.log.error(f"Not enough space: need {file_size} bytes, free {free_space} bytes")
+                return False
+            
+            self.log.info(f"Adding file to vault: {internal_path} ({file_size} bytes)")
+            
+            # Add to file table
+            self.file_table[internal_path] = {
+                'size': file_size,
+                'added_at': time.time(),
+                'original_name': file_path.name,
+                'internal_path': internal_path,
+                'offset': 0,
+                'hash': hashlib.sha256(file_data).hexdigest()
+            }
+            
+            self.metadata['file_count'] = len(self.file_table)
+            
+            # Use stored credentials if available, otherwise use provided
+            pwd = password or self._current_password
+            k = key or self._current_key
+            
+            success = self._rewrite_vault_with_data(file_data, pwd, k)
+            
+            if success:
+                self.log.info(f"File {internal_path} added successfully")
+            else:
+                del self.file_table[internal_path]
+                self.metadata['file_count'] = len(self.file_table)
+                self.log.error(f"Failed to add file, rolled back")
+                
+            return success
+            
+        except Exception as e:
+            self.log.error(f"Failed to add file to vault: {e}")
+            return False
+    
+    def extract_file(self, internal_path: str, output_path: Path, 
+                 password: str = None, key: bytes = None,
+                 show_progress: bool = True) -> bool:
+        """Extract file from vault with hash verification"""
+        try:
+            self.log.info(f"Starting file extraction: {internal_path}")
+        
+            if internal_path not in self.file_table:
+                self.log.error(f"File '{internal_path}' not found in file table")
+                return False
+
+            file_info = self.file_table[internal_path]
+        
+            if not self.is_open or not self.decrypted_data:
+                self.log.info("Vault not open, opening for extraction")
+                if not self.open(password, key):
+                    self.log.error("Failed to open vault for extraction")
+                    return False
+        
+            if file_info.get('offset', 0) + file_info.get('size', 0) > len(self.decrypted_data):
+                self.log.error(f"File data out of bounds")
+                return False
+            
+            start = file_info.get('offset', 0)
+            end = start + file_info.get('size', 0)
+            file_data = self.decrypted_data[start:end]
+        
+            # Verify hash
+            expected_hash = file_info.get('hash')
+            if expected_hash and expected_hash != '0' * 64:
+                file_hash = hashlib.sha256(file_data).hexdigest()
+                self.log.debug(f"Hash check - Expected: {expected_hash[:16]}..., Actual: {file_hash[:16]}...")
+                if file_hash != expected_hash:
+                    self.log.error(f"File integrity check failed for {internal_path}")
+                    self.log.error(f"  Expected hash: {expected_hash}")
+                    self.log.error(f"  Actual hash:   {file_hash}")
+                    return False
+            
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(file_data)
+            self.log.info(f"File successfully written to: {output_path}")
+        
+            return True
+        
+        except Exception as e:
+            self.log.error(f"Failed to extract file from vault: {str(e)}")
+            return False
+    
+    def remove_file(self, internal_path: str, password: str = None, key: bytes = None) -> bool:
+        """Remove file from vault"""
+        try:
+            if internal_path not in self.file_table:
+                self.log.error(f"File not found in vault: {internal_path}")
+                return False
+
+            file_info = self.file_table[internal_path]
+            self.log.info(f"Removing file from vault: {internal_path} ({file_info.get('size', 0)} bytes)")
+            
+            del self.file_table[internal_path]
+            self.metadata['file_count'] = len(self.file_table)
+            
+            # Use stored credentials
+            pwd = password or self._current_password
+            k = key or self._current_key
+            
+            success = self._rewrite_vault_with_data(None, pwd, k)
+            if success:
+                self.log.info(f"File {internal_path} removed successfully")
+            return success
+            
+        except Exception as e:
+            self.log.error(f"Failed to remove file from vault: {e}")
+            return False
+    
+    def rename_file(self, old_path: str, new_path: str, password: str = None, key: bytes = None) -> bool:
+        """
+        Rename a file inside the vault
+        
+        Args:
+            old_path: Current internal path
+            new_path: New internal path
+            password: Password (optional, uses stored if not provided)
+            key: Key file (optional, uses stored if not provided)
+        """
+        if not self.is_open:
+            self.log.error("Vault not open, cannot rename")
+            return False
+            
+        if old_path not in self.file_table:
+            self.log.error(f"File not found: {old_path}")
+            return False
+            
+        if new_path in self.file_table:
+            self.log.error(f"Target path already exists: {new_path}")
+            return False
+        
+        self.log.info(f"Renaming file: {old_path} -> {new_path}")
+        
+        # Get file data before renaming (to keep hash consistent)
+        file_info = self.file_table[old_path]
+        file_data = None
+        
+        if self.decrypted_data and file_info.get('offset', 0) + file_info.get('size', 0) <= len(self.decrypted_data):
+            start = file_info.get('offset', 0)
+            end = start + file_info.get('size', 0)
+            file_data = self.decrypted_data[start:end]
+        
+        # Rename by moving entry in file_table
+        self.file_table[new_path] = self.file_table.pop(old_path)
+        self.file_table[new_path]['internal_path'] = new_path
+        
+        # Update hash to ensure it matches the actual data
+        if file_data:
+            new_hash = hashlib.sha256(file_data).hexdigest()
+            self.file_table[new_path]['hash'] = new_hash
+            self.log.debug(f"Updated hash for {new_path}: {new_hash[:16]}...")
+        
+        # Use stored credentials
+        pwd = password or self._current_password
+        k = key or self._current_key
+        
+        # Need to rewrite vault to save changes
+        try:
+            success = self._rewrite_vault_with_data(None, pwd, k)
+            
+            if success:
+                self.log.info(f"File renamed: {old_path} -> {new_path}")
+                return True
+            else:
+                # Rollback on failure
+                self.file_table[old_path] = self.file_table.pop(new_path)
+                self.log.error(f"Failed to rename file, rolled back")
+                return False
+                
+        except Exception as e:
+            self.log.error(f"Error during rename: {e}")
+            # Rollback
+            if new_path in self.file_table:
+                self.file_table[old_path] = self.file_table.pop(new_path)
+            return False
+
+    # ========== SEARCH AND STATISTICS ==========
+    
+    def search_files(self, pattern: str, search_type: str = 'name') -> List[str]:
+        """Search for files by pattern"""
+        results = []
+        
+        for path in self.file_table.keys():
+            if search_type == 'name':
+                if fnmatch.fnmatch(path, pattern):
+                    results.append(path)
+            elif search_type == 'ext':
+                ext = path.split('.')[-1].lower() if '.' in path else ''
+                if pattern.lower() == ext:
+                    results.append(path)
+            elif search_type == 'contains':
+                if pattern.lower() in path.lower():
+                    results.append(path)
+                    
+        self.log.info(f"Search '{pattern}' found {len(results)} files")
+        return results
+    
+    def get_folder_usage(self) -> Dict[str, int]:
+        """Calculate storage usage by folder"""
+        usage = {}
+        
+        for path, info in self.file_table.items():
+            folder = str(Path(path).parent)
+            if folder == '.':
+                folder = '/'
+            usage[folder] = usage.get(folder, 0) + info.get('size', 0)
+            
+        return usage
+    
+    def get_vault_statistics(self) -> Dict:
+        """Generate comprehensive statistics about vault contents"""
+        if not self.is_open:
+            self.log.warning("Vault not open, cannot get statistics")
+            return {}
+        
+        files = self.file_table
+        if not files:
+            return {
+                'total_files': 0,
+                'total_size_bytes': 0,
+                'total_size_mb': 0,
+                'avg_size_kb': 0,
+                'largest_file': None,
+                'oldest_file': None,
+                'newest_file': None,
+                'file_types': {},
+                'type_sizes': {}
+            }
+        
+        total_files = len(files)
+        total_size = sum(info.get('size', 0) for info in files.values())
+        avg_size = total_size / total_files if total_files > 0 else 0
+        
+        largest = max(files.items(), key=lambda x: x[1].get('size', 0)) if files else None
+        oldest = min(files.items(), key=lambda x: x[1].get('added_at', float('inf'))) if files else None
+        newest = max(files.items(), key=lambda x: x[1].get('added_at', 0)) if files else None
+        
+        from collections import defaultdict
+        file_types = defaultdict(int)
+        type_sizes = defaultdict(int)
+        
+        for path, info in files.items():
+            ext = path.split('.')[-1].lower() if '.' in path else 'no_extension'
+            file_types[ext] += 1
+            type_sizes[ext] += info.get('size', 0)
+        
+        return {
+            'total_files': total_files,
+            'total_size_bytes': total_size,
+            'total_size_mb': round(total_size / (1024 * 1024), 2),
+            'avg_size_kb': round(avg_size / 1024, 2),
+            'largest_file': {
+                'name': largest[0],
+                'size_bytes': largest[1].get('size', 0),
+                'size_mb': round(largest[1].get('size', 0) / (1024 * 1024), 2)
+            } if largest else None,
+            'oldest_file': {
+                'name': oldest[0],
+                'added_at': time.strftime('%Y-%m-%d %H:%M:%S', 
+                                         time.localtime(oldest[1].get('added_at', 0)))
+            } if oldest else None,
+            'newest_file': {
+                'name': newest[0],
+                'added_at': time.strftime('%Y-%m-%d %H:%M:%S', 
+                                         time.localtime(newest[1].get('added_at', 0)))
+            } if newest else None,
+            'file_types': dict(file_types),
+            'type_sizes': {ext: round(size / (1024 * 1024), 2) for ext, size in type_sizes.items()}
+        }
+    
+    def check_space_available(self, size_bytes: int, old_path: str = None) -> Tuple[bool, int]:
+        """Check if there's enough free space in vault"""
+        if not self.is_open:
+            return False, 0
+            
+        used_space = sum(info.get('size', 0) for info in self.file_table.values())
+        
+        if old_path and old_path in self.file_table:
+            used_space -= self.file_table[old_path].get('size', 0)
+        
+        total_space = self.metadata.get('size_bytes', 0)
+        free_space = total_space - used_space
+        required_space = size_bytes + 1024
+        
+        return free_space >= required_space, free_space
+
+    # ========== INTERNAL METHODS ==========
+    
+    def list_files(self) -> List[str]:
+        return list(self.file_table.keys())
+    
+    def quick_preview(self, password: str = None, key: bytes = None) -> Dict:
+        """Get vault metadata and file list without loading file data"""
+        try:
+            if not self.is_open:
+                if not self.open(password, key, quick_mode=True):
+                    return {'status': 'error', 'message': 'Failed to open vault'}
+            
+            preview = {
+                'status': 'success',
+                'vault_name': self.vault_path.name,
+                'file_count': len(self.file_table),
+                'total_size_bytes': sum(f.get('size', 0) for f in self.file_table.values()),
+                'total_size_mb': sum(f.get('size', 0) for f in self.file_table.values()) // (1024 * 1024),
+                'created_at': self.metadata.get('created_at_str', 'Unknown'),
+                'version': self.metadata.get('version', '1.0'),
+                'files': []
+            }
+            
+            for internal_path, file_info in self.file_table.items():
+                preview['files'].append({
+                    'name': internal_path,
+                    'size_bytes': file_info.get('size', 0),
+                    'size_kb': file_info.get('size', 0) // 1024,
+                    'added_date': time.strftime('%Y-%m-%d', time.localtime(file_info.get('added_at', 0))),
+                    'original_name': file_info.get('original_name', '')
+                })
+            
+            return preview
+            
+        except Exception as e:
+            self.log.error(f"Quick preview error: {e}")
+            return {'status': 'error', 'message': str(e)}
+    
+    def deep_integrity_check(self, password: str = None, key: bytes = None) -> Dict:
+        """Comprehensive vault integrity verification"""
+        try:
+            self.log.info("Starting deep integrity check")
+            
+            if not self.is_open:
+                if not self.open(password, key):
+                    return {'status': 'error', 'message': 'Cannot open vault'}
+            
+            results = {
+                'status': 'success',
+                'checks_passed': 0,
+                'checks_total': 2,
+                'overall_status': 'healthy',
+                'issues': [],
+                'files_checked': len(self.file_table)
+            }
+            
+            if self._verify_header_integrity():
+                results['checks_passed'] += 1
+            else:
+                results['issues'].append("Header integrity check failed")
+            
+            if self._verify_file_table_consistency():
+                results['checks_passed'] += 1
+            else:
+                results['issues'].append("File table consistency check failed")
+            
+            if results['checks_passed'] == results['checks_total']:
+                results['overall_status'] = 'healthy'
+            elif results['checks_passed'] >= results['checks_total'] * 0.7:
+                results['overall_status'] = 'degraded'
+            else:
+                results['overall_status'] = 'corrupted'
+            
+            return results
+            
+        except Exception as e:
+            self.log.error(f"Deep integrity check error: {e}")
+            return {'status': 'error', 'message': str(e)}
+    
+    def debug_file_info(self, internal_path: str):
+        """Debug method to check file information"""
+        if internal_path in self.file_table:
+            file_info = self.file_table[internal_path]
+            self.log.info(f"File debug info for {internal_path}:")
+            self.log.info(f"  - Size: {file_info.get('size', 0)}")
+            self.log.info(f"  - Offset: {file_info.get('offset', 0)}")
+            self.log.info(f"  - Hash: {file_info.get('hash', 'MISSING')}")
+            
+            if self.decrypted_data:
+                end_offset = file_info.get('offset', 0) + file_info.get('size', 0)
+                self.log.info(f"  - Data bounds: {file_info.get('offset', 0)} to {end_offset} (total: {len(self.decrypted_data)})")
+                
+                if end_offset <= len(self.decrypted_data):
+                    start = file_info.get('offset', 0)
+                    end = start + file_info.get('size', 0)
+                    file_data = self.decrypted_data[start:end]
+                    self.log.info(f"  - Actual data size: {len(file_data)}")
+
+    # ========== HEADER AND FILE TABLE METHODS ==========
+    
+    def _verify_header_integrity(self) -> bool:
+        required_fields = ['version', 'size_bytes', 'created_at', 'file_count']
+        return all(field in self.metadata for field in required_fields)
+    
+    def _verify_file_table_consistency(self) -> bool:
+        for path, info in self.file_table.items():
+            required = ['size', 'offset', 'hash', 'added_at']
+            if not all(field in info for field in required):
+                return False
+            if info.get('size', 0) < 0 or info.get('offset', 0) < 0:
+                return False
+        return True
+    
+    def _load_file_table_metadata_only(self, decrypted_data: bytes) -> bool:
+        """Load only file table metadata"""
+        try:
+            metadata_len = struct.unpack('>I', decrypted_data[:4])[0]
+            header_size = 4 + metadata_len
+            
+            file_table_size = struct.unpack('>I', decrypted_data[header_size:header_size+4])[0]
+            file_table_start = header_size + 4
+            file_table_end = file_table_start + file_table_size
+            file_table_json = decrypted_data[file_table_start:file_table_end]
+            
+            self.file_data_offset = file_table_end
+            
+            if file_table_json:
+                file_table_data = json.loads(file_table_json.decode('utf-8'))
+                self.file_table = file_table_data.get('files', {})
+                self.log.info(f"Loaded file table with {len(self.file_table)} files (metadata only)")
+                return True
+            else:
+                self.file_table = {}
+                return True
+                
+        except Exception as e:
+            self.log.error(f"Failed to load file table metadata: {e}")
+            self.file_table = {}
+            return False
+    
     def _load_file_table(self, decrypted_data: bytes) -> bool:
+        """Load full file table"""
         try:
             metadata_len = struct.unpack('>I', decrypted_data[:4])[0]
             header_size = 4 + metadata_len
@@ -359,247 +686,32 @@ class VaultContainer:
             self.log.error(f"Failed to load file table: {e}")
             self.file_table = {}
             return False
-
+    
     def _save_file_table(self) -> bytes:
+        """Save file table to bytes"""
         try:
             file_table_data = {
                 'files': self.file_table,
                 'timestamp': time.time(),
                 'file_count': len(self.file_table)
             }
-            file_table_json = json.dumps(file_table_data, indent=2).encode('utf-8')
-            return file_table_json
+            return json.dumps(file_table_data, indent=2, ensure_ascii=False).encode('utf-8')
         except Exception as e:
             self.log.error(f"Failed to save file table: {e}")
-            return b''
-
-    def _calculate_hash(self, data: bytes) -> str:
-        return hashlib.sha256(data).hexdigest()
-
-    def add_file(self, file_path: Path, internal_path: str, password: str = None, key: bytes = None) -> bool:
-        """Add file to vault - with improved error handling"""
-        try:
-            if not file_path.exists():
-                self.log.error(f"Source file not found: {file_path}")
-                return False
-
-            file_data = file_path.read_bytes()
-            file_size = len(file_data)
-
-            self.log.info(f"Adding file to vault: {internal_path} ({file_size} bytes)")
-
-            self.file_table[internal_path] = {
-                'size': file_size,
-                'added_at': time.time(),
-                'original_name': file_path.name,
-                'internal_path': internal_path,
-                'offset': 0,
-                'hash': '0' * 64
-            }
-
-            self.metadata['file_count'] = len(self.file_table)
-
-            success = self._rewrite_vault_with_data(file_data, password, key)
-            if success:
-                self.log.info(f"File {internal_path} added successfully to vault")
-            else:
-                # Rollback on failure
-                del self.file_table[internal_path]
-                self.metadata['file_count'] = len(self.file_table)
-                self.log.error(f"Failed to add file {internal_path}, rolled back")
-            return success
-
-        except Exception as e:
-            self.log.error(f"Failed to add file to vault: {e}")
-            return False
-    
-    def extract_file(self, internal_path: str, output_path: Path, password: str = None, key: bytes = None) -> bool:
-        try:
-            self.log.info(f"Starting file extraction: {internal_path}")
-        
-            if internal_path not in self.file_table:
-                self.log.error(f"File '{internal_path}' not found in file table")
-                return False
-
-            file_info = self.file_table[internal_path]
-        
-            if not self.is_open or not self.decrypted_data:
-                self.log.info("Vault not open, opening for extraction")
-                if not self.open(password, key):
-                    self.log.error("Failed to open vault for extraction")
-                    return False
-        
-            if file_info['offset'] + file_info['size'] > len(self.decrypted_data):
-                self.log.error(f"File data out of bounds")
-                return False
-            
-            file_data = self.decrypted_data[file_info['offset']:file_info['offset'] + file_info['size']]
-        
-            file_hash = self._calculate_hash(file_data)
-            expected_hash = file_info['hash']
-        
-            if file_hash != expected_hash:
-                self.log.error(f"File integrity check failed for {internal_path}")
-                return False
-        
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_bytes(file_data)
-            self.log.info(f"File successfully written to: {output_path}")
-        
-            return True
-        
-        except Exception as e:
-            self.log.error(f"Failed to extract file from vault: {str(e)}")
-            return False
-
-    def list_files(self) -> List[str]:
-        files = list(self.file_table.keys())
-        self.log.info(f"Listed {len(files)} files from vault")
-        return files
-
-    def remove_file(self, internal_path: str, password: str = None, key: bytes = None) -> bool:
-        try:
-            if internal_path not in self.file_table:
-                self.log.error(f"File not found in vault: {internal_path}")
-                return False
-
-            file_info = self.file_table[internal_path]
-            self.log.info(f"Removing file from vault: {internal_path} ({file_info['size']} bytes)")
-            
-            del self.file_table[internal_path]
-            self.metadata['file_count'] = len(self.file_table)
-            
-            success = self._rewrite_vault_with_data(None, password, key)
-            if success:
-                self.log.info(f"File {internal_path} removed successfully from vault")
-            else:
-                self.log.error(f"Failed to remove file {internal_path}")
-            return success
-            
-        except Exception as e:
-            self.log.error(f"Failed to remove file from vault: {e}")
-            return False
-
-    def _rewrite_vault_with_data(self, new_file_data: bytes = None, password: str = None, key: bytes = None) -> bool:
-        """Rewrite vault with improved error handling"""
-        try:
-            header = self._create_header()
-            file_table_data = self._save_file_table()
-            file_table_size = len(file_table_data)
-            
-            current_offset = len(header) + 4 + file_table_size
-            all_file_data = b''
-        
-            for internal_path, file_info in self.file_table.items():
-                if new_file_data and internal_path == list(self.file_table.keys())[-1]:
-                    file_data = new_file_data
-                else:
-                    if self.decrypted_data and file_info['offset'] + file_info['size'] <= len(self.decrypted_data):
-                        file_data = self.decrypted_data[file_info['offset']:file_info['offset'] + file_info['size']]
-                    else:
-                        self.log.error(f"Cannot read file data for {internal_path}")
-                        return False
-            
-                self.file_table[internal_path]['offset'] = current_offset
-                all_file_data += file_data
-                current_offset += len(file_data)
-        
-            file_table_data = self._save_file_table()
-            file_table_size = len(file_table_data)
-        
-            file_data_start = len(header) + 4 + file_table_size
-            all_file_data = b''
-        
-            for internal_path in self.file_table.keys():
-                file_info = self.file_table[internal_path]
-                if new_file_data and internal_path == list(self.file_table.keys())[-1]:
-                    file_data = new_file_data
-                else:
-                    if self.decrypted_data and file_info['offset'] + file_info['size'] <= len(self.decrypted_data):
-                        file_data = self.decrypted_data[file_info['offset']:file_info['offset'] + file_info['size']]
-                    else:
-                        self.log.error(f"Cannot read file data for {internal_path}")
-                        return False
-            
-                all_file_data += file_data
-        
-            current_size = self.metadata['size_bytes']
-            total_used = len(header) + 4 + file_table_size + len(all_file_data)
-            available_space = current_size - total_used
-        
-            if available_space < 0:
-                self.log.error(f"Vault is full. Need {abs(available_space)} more bytes")
-                return False
-        
-            vault_data = (
-                header +
-                struct.pack('>I', file_table_size) +
-                file_table_data +
-                all_file_data +
-                b'\x00' * available_space
-            )
-        
-            if key:
-                encrypted = encrypt_data(vault_data, key=key)
-            else:
-                encrypted = encrypt_data(vault_data, password=password)
-
-            self.vault_path.write_bytes(encrypted)
-            self.decrypted_data = vault_data
-            
-            self.log.info(f"Vault rewritten successfully with {len(self.file_table)} files")
-            return True
-        
-        except Exception as e:
-            self.log.error(f"Failed to rewrite vault with data: {e}")
-            return False
-        
-    def quick_preview(self, password: str = None, key: bytes = None) -> Dict:
-        """Get vault metadata and file list without loading file data into memory"""
-        try:
-            if not self.is_open:
-                if not self.open(password, key, quick_mode=True):
-                    return {'status': 'error', 'message': 'Failed to open vault - wrong password or corrupted'}
-            
-            preview = {
-                'status': 'success',
-                'vault_name': self.vault_path.name,
-                'file_count': len(self.file_table),
-                'total_size_bytes': sum(f['size'] for f in self.file_table.values()),
-                'total_size_mb': sum(f['size'] for f in self.file_table.values()) // (1024 * 1024),
-                'created_at': self.metadata.get('created_at_str', 'Unknown'),
-                'version': self.metadata.get('version', '1.0'),
-                'files': []
-            }
-            
-            for internal_path, file_info in self.file_table.items():
-                preview['files'].append({
-                    'name': internal_path,
-                    'size_bytes': file_info['size'],
-                    'size_kb': file_info['size'] // 1024,
-                    'added_date': time.strftime('%Y-%m-%d', time.localtime(file_info['added_at'])),
-                    'original_name': file_info.get('original_name', '')
-                })
-            
-            self.secure_close()
-            return preview
-            
-        except Exception as e:
-            self.log.error(f"Quick preview error: {e}")
-            return {'status': 'error', 'message': str(e)}
+            return b'{}'
     
     def _create_header(self) -> bytes:
-        """Legacy method for compatibility"""
+        """Create vault header"""
         try:
-            metadata_json = json.dumps(self.metadata).encode('utf-8')
-            header = struct.pack('>I', len(metadata_json)) + metadata_json
-            return header
+            metadata_json = json.dumps(self.metadata, ensure_ascii=False).encode('utf-8')
+            return struct.pack('>I', len(metadata_json)) + metadata_json
         except Exception as e:
             self.log.error(f"Failed to create vault header: {e}")
-            raise
-
+            empty_json = json.dumps({}).encode('utf-8')
+            return struct.pack('>I', len(empty_json)) + empty_json
+    
     def _read_header(self, data: bytes) -> bool:
-        """Legacy method for compatibility"""
+        """Read vault header"""
         try:
             metadata_len = struct.unpack('>I', data[:4])[0]
             metadata_json = data[4:4 + metadata_len]
@@ -608,109 +720,86 @@ class VaultContainer:
         except Exception as e:
             self.log.error(f"Failed to read vault header: {e}")
             return False
-        
-    def debug_file_info(self, internal_path: str):
-        """Debug method to check file information"""
-        if internal_path in self.file_table:
-            file_info = self.file_table[internal_path]
-            self.log.info(f"File debug info for {internal_path}:")
-            self.log.info(f"  - Size: {file_info['size']}")
-            self.log.info(f"  - Offset: {file_info['offset']}")
-            self.log.info(f"  - Hash: {file_info.get('hash', 'MISSING')}")
-            
-            if self.decrypted_data:
-                end_offset = file_info['offset'] + file_info['size']
-                self.log.info(f"  - Data bounds: {file_info['offset']} to {end_offset} (total: {len(self.decrypted_data)})")
-                
-                if end_offset <= len(self.decrypted_data):
-                    file_data = self.decrypted_data[file_info['offset']:end_offset]
-                    self.log.info(f"  - Actual data size: {len(file_data)}")
-                    self.log.info(f"  - Actual hash: {self._calculate_hash(file_data) if file_data else 'EMPTY'}")
-
-    def get_info(self, password: str = None, key: bytes = None) -> dict:
+    
+    def _rewrite_vault_with_data(self, new_file_data: bytes = None, 
+                                  password: str = None, key: bytes = None) -> bool:
+        """Rewrite vault with data"""
         try:
-            info = {
-                'path': str(self.vault_path),
-                'status': 'ACTIVE' if self.vault_path.exists() else 'MISSING'
-            }
-
-            if self.vault_path.exists():
-                disk_size = self.vault_path.stat().st_size
-                info['disk_size_mb'] = disk_size // (1024 * 1024)
-                created_time = self.vault_path.stat().st_ctime
-                info['created_at'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(created_time))
-            else:
-                info['disk_size_mb'] = 0
-                info['created_at'] = 'Unknown'
-
-            if self.vault_path.exists():
-                if self.is_open and self.file_table:
-                    total_size = self.metadata.get('size_bytes', 0)
-                    file_count = len(self.file_table)
-                    total_used = sum(f['size'] for f in self.file_table.values())
-                    free_space = total_size - total_used
-
-                    info['total_size_mb'] = total_size // (1024 * 1024)
-                    info['file_count'] = file_count
-                    info['used_space_mb'] = total_used // 1024
-                    info['free_space_mb'] = free_space // (1024 * 1024)
-                    info['files_list'] = list(self.file_table.keys())
-
-                    if 'created_at_str' in self.metadata:
-                        info['created_at'] = self.metadata['created_at_str']
-
-                    self.log.info(f"Vault info from opened state: {file_count} files, {total_used//1024}KB used")
+            # Ensure we have valid structures
+            if not hasattr(self, 'file_table'):
+                self.file_table = {}
+            if not hasattr(self, 'metadata'):
+                self.metadata = {'size_bytes': 10 * 1024 * 1024, 'file_count': 0}
+            
+            # Check if we have credentials
+            if password is None and key is None:
+                self.log.error("No password or key provided for rewrite")
+                return False
+            
+            header = self._create_header()
+            file_table_data = self._save_file_table()
+            file_table_size = len(file_table_data)
+            
+            # Collect all file data
+            all_file_data = b''
+            current_offset = len(header) + 4 + file_table_size
+            
+            for internal_path, file_info in self.file_table.items():
+                if new_file_data and internal_path == list(self.file_table.keys())[-1]:
+                    file_data = new_file_data
                 else:
-                    try:
-                        if self.open(password, key):
-                            total_size = self.metadata.get('size_bytes', 0)
-                            file_count = len(self.file_table)
-                            total_used = sum(f['size'] for f in self.file_table.values())
-                            free_space = total_size - total_used
-
-                            info['total_size_mb'] = total_size // (1024 * 1024)
-                            info['file_count'] = file_count
-                            info['used_space_mb'] = total_used // 1024
-                            info['free_space_mb'] = free_space // (1024 * 1024)
-                            info['files_list'] = list(self.file_table.keys())
-
-                            if 'created_at_str' in self.metadata:
-                                info['created_at'] = self.metadata['created_at_str']
-
-                            self.log.info(f"Vault info after opening: {file_count} files, {total_used//1024}KB used")
-                        else:
-                            self.log.warning(f"Could not open vault for detailed info: {self.vault_path}")
-                            info['total_size_mb'] = info['disk_size_mb']
-                            info['file_count'] = 0
-                            info['used_space_mb'] = 0
-                            info['free_space_mb'] = info['disk_size_mb']
-                            info['files_list'] = []
-                    except Exception as e:
-                        self.log.error(f"Error opening vault for info: {e}")
-                        info['total_size_mb'] = info['disk_size_mb']
-                        info['file_count'] = 0
-                        info['used_space_mb'] = 0
-                        info['free_space_mb'] = info['disk_size_mb']
-                        info['files_list'] = []
-            else:
-                info['total_size_mb'] = 0
-                info['file_count'] = 0
-                info['used_space_mb'] = 0
-                info['free_space_mb'] = 0
-                info['files_list'] = []
-
-            self.log.info(f"Vault info: {info.get('file_count', 0)} files, {info.get('used_space_mb', 0)}KB used")
-            return info
-
+                    if self.decrypted_data and file_info.get('offset', 0) + file_info.get('size', 0) <= len(self.decrypted_data):
+                        start = file_info.get('offset', 0)
+                        end = start + file_info.get('size', 0)
+                        file_data = self.decrypted_data[start:end]
+                    else:
+                        self.log.error(f"Cannot read file data for {internal_path}")
+                        return False
+                
+                self.file_table[internal_path]['offset'] = current_offset
+                all_file_data += file_data
+                current_offset += len(file_data)
+            
+            # Update file table with new offsets
+            file_table_data = self._save_file_table()
+            file_table_size = len(file_table_data)
+            
+            # Build final vault data
+            vault_data = (
+                header +
+                struct.pack('>I', file_table_size) +
+                file_table_data +
+                all_file_data
+            )
+            
+            # Pad to required size
+            current_size = self.metadata.get('size_bytes', 10 * 1024 * 1024)
+            current_len = len(vault_data)
+            if current_len < current_size:
+                vault_data += b'\x00' * (current_size - current_len)
+            elif current_len > current_size:
+                self.log.error(f"Vault size exceeded: {current_len} > {current_size}")
+                return False
+            
+            # Encrypt
+            try:
+                if key:
+                    encrypted = encrypt_data(vault_data, key=key)
+                else:
+                    encrypted = encrypt_data(vault_data, password=password)
+            except Exception as e:
+                self.log.error(f"Encryption failed: {e}")
+                return False
+            
+            # Save
+            self.vault_path.write_bytes(encrypted)
+            self.decrypted_data = vault_data
+            
+            self.log.info(f"Vault rewritten successfully with {len(self.file_table)} files")
+            return True
+            
         except Exception as e:
-            self.log.error(f"Error getting vault info: {e}")
-            return {
-                'path': str(self.vault_path),
-                'status': 'ERROR',
-                'created_at': 'Unknown',
-                'file_count': 0,
-                'disk_size_mb': 0,
-                'total_size_mb': 0,
-                'used_space_mb': 0,
-                'free_space_mb': 0
-            }
+            self.log.error(f"Failed to rewrite vault with data: {e}")
+            import traceback
+            self.log.error(traceback.format_exc())
+            return False

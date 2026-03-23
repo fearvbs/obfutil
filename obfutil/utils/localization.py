@@ -150,7 +150,133 @@ _locales = {
         "integrity_verified_msg": "Integrity verified successfully",
         "integrity_failed_msg": "Integrity check failed",
         "file_tampered": "File may be corrupted or tampered with",
-        "file_authentic": "File is authentic and unchanged"
+        "file_authentic": "File is authentic and unchanged",
+
+        "vault_search": "Search files in vault",
+        "vault_rename": "Rename file in vault",
+        "vault_du": "Show disk usage by folder",
+        "vault_stats": "Show detailed vault statistics",
+        "vault_force": "Force overwrite existing files",
+        
+        # Search options
+        "search_type": "Search type",
+        "search_type_name": "Search by name pattern (wildcards)",
+        "search_type_ext": "Search by file extension",
+        "search_type_contains": "Search by substring",
+        "search_case": "Case-sensitive search",
+        "search_min_size": "Minimum file size in MB",
+        "search_max_size": "Maximum file size in MB",
+        
+        # Stats output
+        "stats_basic": "BASIC STATISTICS",
+        "stats_file_types": "FILE TYPE DISTRIBUTION",
+        "stats_largest_files": "LARGEST FILES",
+        "stats_folder_summary": "FOLDER SUMMARY",
+        "stats_file_ages": "FILE AGES",
+        "stats_oldest_file": "Oldest File",
+        "stats_newest_file": "Newest File",
+        "stats_average_size": "Average Size",
+        "stats_total_files": "Total Files",
+        "stats_total_size": "Total Size",
+        
+        # DU output
+        "du_usage": "Disk Usage",
+        "du_folder": "Folder",
+        "du_size": "Size",
+        "du_percent": "%",
+        "du_total": "TOTAL",
+        
+        # Search results
+        "search_results": "Search Results",
+        "search_found": "Found {count} file(s)",
+        "search_filters_applied": "Filters applied",
+        "search_min_size_filter": "Minimum size: {size} MB",
+        "search_max_size_filter": "Maximum size: {size} MB",
+        
+        # Add command improvements
+        "add_file_exists": "File '{path}' already exists in vault",
+        "add_force_hint": "Use --force to overwrite",
+        "add_not_enough_space": "Not enough space in vault",
+        "add_need_space": "Need: {need} MB",
+        "add_free_space": "Free: {free} MB",
+        "add_warning_large_file": "Warning: File size is {size}",
+        "add_continue": "Continue? [y/N]",
+        "add_cancelled": "Operation cancelled.",
+        "add_success": "SUCCESS: File added to vault '{name}'",
+        "add_original_deleted": "Original file deleted",
+        
+        # Extract improvements
+        "extract_overwrite": "File '{path}' already exists. Overwrite? [y/N]",
+        "extract_cancelled": "Extraction cancelled.",
+        "extract_success": "File extracted to: {path}",
+        
+        # Delete improvements
+        "delete_warning": "WARNING: You are about to DELETE vault '{name}'",
+        "delete_contains": "This vault contains {count} file(s) totaling {size} MB",
+        "delete_irreversible": "This action CANNOT be undone!",
+        "delete_confirm": "Type 'DELETE' to confirm deletion: ",
+        "delete_cancelled": "Deletion cancelled.",
+        "delete_success": "Vault '{name}' deleted successfully",
+        "delete_failed": "Failed to delete vault",
+        
+        # Verify improvements
+        "verify_deep_hint": "Run with --deep for detailed file verification",
+        "verify_healthy": "OK All checks passed - vault is healthy",
+        "verify_quick_pass": "OK Quick check passed - vault structure is valid",
+        "verify_quick_fail": "X Quick check failed - vault structure issues detected",
+        
+        # Storage improvements
+        "storage_warning_full": "WARNING: Vault is almost full!",
+        "storage_consider": "Consider creating a larger vault or removing old files",
+        
+        # List improvements
+        "list_create_first": "Create your first vault:",
+        "list_example": "  obfutil vault create myvault --size 100 --password",
+        "list_note": "Note: File count and health require --password/--key-file",
+        "list_accessible": "OK = accessible, X = locked (needs authentication)",
+        
+        # Info improvements
+        "info_tip_stats": "Use 'obfutil vault stats {name}' for detailed statistics",
+        
+        # Create improvements
+        "create_success": "Vault '{name}' created successfully",
+        "create_next_steps": "Next steps:",
+        "create_next_add": "  - Add files: obfutil vault add {name} <file> --password",
+        "create_next_preview": "  - List files: obfutil vault preview {name} --password",
+        "create_next_stats": "  - Check stats: obfutil vault stats {name} --password",
+        "create_failed": "Failed to create vault '{name}'",
+        "create_possible_reasons": "Possible reasons:",
+        "create_reason_exists": "  - Vault already exists",
+        "create_reason_auth": "  - Invalid password or key",
+        "create_reason_space": "  - Insufficient disk space",
+        
+        # Remove improvements
+        "remove_confirm": "Remove from vault '{name}'? [y/N]: ",
+        "remove_cancelled": "Removal cancelled.",
+        "remove_success": "File removed from vault '{name}'",
+        "remove_failed": "Failed to remove file",
+        "remove_tip": "Check if file exists using 'obfutil vault preview'",
+        
+        # Debug improvements
+        "debug_success": "Debug info logged for file: {path}",
+        "debug_check_log": "Check log file for details: ~/.obfutil/logs/program.log",
+        
+        # Common
+        "tip": "Tip",
+        "warning": " Warning",
+        "error": "Error",
+        "success": "Success",
+        "cancelled": "Operation cancelled.",
+        
+        # Batch improvements
+        "batch_success": "SUCCESS: {successful}/{processed} files encrypted",
+        "batch_warning": "WARNING: {failed} files failed",
+        
+        # Fatal error
+        "fatal_error": "FATAL ERROR: {msg}",
+        "report_issue": "If this error persists, please report it with the log file:",
+        "log_path": "   ~/.obfutil/logs/program.log",
+        "press_enter_exit": "Press Enter to exit..."
     },
     "ru": {
         "menu_title": "ObfUtil версия {VERSION}",
@@ -298,7 +424,134 @@ _locales = {
         "integrity_verified_msg": "Целостность проверена успешно",
         "integrity_failed_msg": "Проверка целостности не удалась", 
         "file_tampered": "Файл может быть поврежден или изменен",
-        "file_authentic": "Файл аутентичен и не изменен"
+        "file_authentic": "Файл аутентичен и не изменен",
+
+                # Vault new commands
+        "vault_search": "Поиск файлов в сейфе",
+        "vault_rename": "Переименовать файл в сейфе",
+        "vault_du": "Показать использование диска по папкам",
+        "vault_stats": "Показать детальную статистику сейфа",
+        "vault_force": "Принудительно перезаписать существующие файлы",
+        
+        # Search options
+        "search_type": "Тип поиска",
+        "search_type_name": "Поиск по имени (с wildcards)",
+        "search_type_ext": "Поиск по расширению файла",
+        "search_type_contains": "Поиск по подстроке",
+        "search_case": "Учитывать регистр",
+        "search_min_size": "Минимальный размер файла в МБ",
+        "search_max_size": "Максимальный размер файла в МБ",
+        
+        # Stats output
+        "stats_basic": "ОСНОВНАЯ СТАТИСТИКА",
+        "stats_file_types": "РАСПРЕДЕЛЕНИЕ ПО ТИПАМ",
+        "stats_largest_files": "САМЫЕ БОЛЬШИЕ ФАЙЛЫ",
+        "stats_folder_summary": "СВОДКА ПО ПАПКАМ",
+        "stats_file_ages": "ВОЗРАСТ ФАЙЛОВ",
+        "stats_oldest_file": "Самый старый файл",
+        "stats_newest_file": "Самый новый файл",
+        "stats_average_size": "Средний размер",
+        "stats_total_files": "Всего файлов",
+        "stats_total_size": "Общий размер",
+        
+        # DU output
+        "du_usage": "Использование диска",
+        "du_folder": "Папка",
+        "du_size": "Размер",
+        "du_percent": "%",
+        "du_total": "ВСЕГО",
+        
+        # Search results
+        "search_results": "Результаты поиска",
+        "search_found": "Найдено {count} файл(ов)",
+        "search_filters_applied": "Применены фильтры",
+        "search_min_size_filter": "Мин. размер: {size} МБ",
+        "search_max_size_filter": "Макс. размер: {size} МБ",
+        
+        # Add command improvements
+        "add_file_exists": "Файл '{path}' уже существует в сейфе",
+        "add_force_hint": "Используйте --force для перезаписи",
+        "add_not_enough_space": "Недостаточно места в сейфе",
+        "add_need_space": "Требуется: {need} МБ",
+        "add_free_space": "Свободно: {free} МБ",
+        "add_warning_large_file": "Предупреждение: Размер файла {size}",
+        "add_continue": "Продолжить? [y/N]",
+        "add_cancelled": "Операция отменена.",
+        "add_success": "Файл добавлен в сейф '{name}'",
+        "add_original_deleted": "Исходный файл удален",
+        
+        # Extract improvements
+        "extract_overwrite": "Файл '{path}' уже существует. Перезаписать? [y/N]",
+        "extract_cancelled": "Извлечение отменено.",
+        "extract_success": "Файл извлечен в: {path}",
+        
+        # Delete improvements
+        "delete_warning": "ВНИМАНИЕ: Вы собираетесь УДАЛИТЬ сейф '{name}'",
+        "delete_contains": "Этот сейф содержит {count} файл(ов) общим размером {size} МБ",
+        "delete_irreversible": "Это действие НЕЛЬЗЯ отменить!",
+        "delete_confirm": "Введите 'DELETE' для подтверждения удаления: ",
+        "delete_cancelled": "Удаление отменено.",
+        "delete_success": "Сейф '{name}' успешно удален",
+        "delete_failed": "Не удалось удалить сейф",
+        
+        # Verify improvements
+        "verify_deep_hint": "Запустите с --deep для детальной проверки файлов",
+        "verify_healthy": "OK Все проверки пройдены - сейф в порядке",
+        "verify_quick_pass": "OK Быстрая проверка пройдена - структура сейфа корректна",
+        "verify_quick_fail": "X Быстрая проверка не пройдена - обнаружены проблемы структуры",
+        
+        # Storage improvements
+        "storage_warning_full": "ВНИМАНИЕ: Сейф почти заполнен!",
+        "storage_consider": "Рассмотрите возможность создания большего сейфа или удаления старых файлов",
+        
+        # List improvements
+        "list_create_first": "Создайте свой первый сейф:",
+        "list_example": "  obfutil vault create myvault --size 100 --password",
+        "list_note": "Примечание: Количество файлов и состояние требуют --password/--key-file",
+        "list_accessible": "OK = доступен, X = заблокирован (требуется аутентификация)",
+        
+        # Info improvements
+        "info_tip_stats": "Используйте 'obfutil vault stats {name}' для детальной статистики",
+        
+        # Create improvements
+        "create_success": "Сейф '{name}' успешно создан",
+        "create_next_steps": "Следующие шаги:",
+        "create_next_add": "  - Добавить файлы: obfutil vault add {name} <файл> --password",
+        "create_next_preview": "  - Просмотреть файлы: obfutil vault preview {name} --password",
+        "create_next_stats": "  - Проверить статистику: obfutil vault stats {name} --password",
+        "create_failed": "Не удалось создать сейф '{name}'",
+        "create_possible_reasons": "Возможные причины:",
+        "create_reason_exists": "  - Сейф уже существует",
+        "create_reason_auth": "  - Неверный пароль или ключ",
+        "create_reason_space": "  - Недостаточно места на диске",
+        
+        # Remove improvements
+        "remove_confirm": "Удалить из сейфа '{name}'? [y/N]: ",
+        "remove_cancelled": "Удаление отменено.",
+        "remove_success": "Файл удален из сейфа '{name}'",
+        "remove_failed": "Не удалось удалить файл",
+        "remove_tip": "Проверьте, существует ли файл с помощью 'obfutil vault preview'",
+        
+        # Debug improvements
+        "debug_success": "Отладочная информация записана для файла: {path}",
+        "debug_check_log": "Проверьте файл лога: ~/.obfutil/logs/program.log",
+        
+        # Common
+        "tip": "Подсказка",
+        "warning": "Предупреждение",
+        "error": "Ошибка",
+        "success": "Успешно",
+        "cancelled": "Операция отменена.",
+        
+        # Batch improvements
+        "batch_success": "УСПЕШНО: {successful}/{processed} файлов зашифровано",
+        "batch_warning": "ВНИМАНИЕ: {failed} файлов не удалось обработать",
+        
+        # Fatal error
+        "fatal_error": "КРИТИЧЕСКАЯ ОШИБКА: {msg}",
+        "report_issue": "Если ошибка повторяется, сообщите о ней с файлом лога:",
+        "log_path": "   ~/.obfutil/logs/program.log",
+        "press_enter_exit": "Нажмите Enter для выхода..."
     },
     "de": {
         "menu_title": "ObfUtil Version {VERSION}",
@@ -446,7 +699,134 @@ _locales = {
         "integrity_verified_msg": "Integrität erfolgreich überprüft",
         "integrity_failed_msg": "Integritätsprüfung fehlgeschlagen",
         "file_tampered": "Datei könnte beschädigt oder manipuliert sein",
-        "file_authentic": "Datei ist authentisch und unverändert"
+        "file_authentic": "Datei ist authentisch und unverändert",
+
+                # Vault new commands
+        "vault_search": "Dateien im Tresor suchen",
+        "vault_rename": "Datei im Tresor umbenennen",
+        "vault_du": "Speichernutzung nach Ordnern anzeigen",
+        "vault_stats": "Detaillierte Tresorstatistiken anzeigen",
+        "vault_force": "Vorhandene Dateien überschreiben",
+        
+        # Search options
+        "search_type": "Suchtyp",
+        "search_type_name": "Suche nach Namen (mit Wildcards)",
+        "search_type_ext": "Suche nach Dateierweiterung",
+        "search_type_contains": "Suche nach Teilstring",
+        "search_case": "Groß-/Kleinschreibung beachten",
+        "search_min_size": "Minimale Dateigröße in MB",
+        "search_max_size": "Maximale Dateigröße in MB",
+        
+        # Stats output
+        "stats_basic": "GRUNDLEGENDE STATISTIK",
+        "stats_file_types": "DATEITYPEN VERTEILUNG",
+        "stats_largest_files": "GRÖSSTE DATEIEN",
+        "stats_folder_summary": "ORDNER ZUSAMMENFASSUNG",
+        "stats_file_ages": "DATEIALTER",
+        "stats_oldest_file": "Älteste Datei",
+        "stats_newest_file": "Neueste Datei",
+        "stats_average_size": "Durchschnittliche Größe",
+        "stats_total_files": "Dateien gesamt",
+        "stats_total_size": "Gesamtgröße",
+        
+        # DU output
+        "du_usage": "Speichernutzung",
+        "du_folder": "Ordner",
+        "du_size": "Größe",
+        "du_percent": "%",
+        "du_total": "GESAMT",
+        
+        # Search results
+        "search_results": "Suchergebnisse",
+        "search_found": "{count} Datei(en) gefunden",
+        "search_filters_applied": "Angewendete Filter",
+        "search_min_size_filter": "Min. Größe: {size} MB",
+        "search_max_size_filter": "Max. Größe: {size} MB",
+        
+        # Add command improvements
+        "add_file_exists": "Datei '{path}' existiert bereits im Tresor",
+        "add_force_hint": "Verwenden Sie --force zum Überschreiben",
+        "add_not_enough_space": "Nicht genügend Speicherplatz im Tresor",
+        "add_need_space": "Benötigt: {need} MB",
+        "add_free_space": "Frei: {free} MB",
+        "add_warning_large_file": "Warnung: Dateigröße ist {size}",
+        "add_continue": "Fortfahren? [y/N]",
+        "add_cancelled": "Vorgang abgebrochen.",
+        "add_success": "Datei zum Tresor '{name}' hinzugefügt",
+        "add_original_deleted": "Originaldatei gelöscht",
+        
+        # Extract improvements
+        "extract_overwrite": "Datei '{path}' existiert bereits. Überschreiben? [y/N]",
+        "extract_cancelled": "Extraktion abgebrochen.",
+        "extract_success": "Datei extrahiert nach: {path}",
+        
+        # Delete improvements
+        "delete_warning": "WARNUNG: Sie sind dabei, den Tresor '{name}' zu LÖSCHEN",
+        "delete_contains": "Dieser Tresor enthält {count} Datei(en) mit {size} MB",
+        "delete_irreversible": "Diese Aktion kann NICHT rückgängig gemacht werden!",
+        "delete_confirm": "Geben Sie 'DELETE' zum Bestätigen ein: ",
+        "delete_cancelled": "Löschen abgebrochen.",
+        "delete_success": "Tresor '{name}' erfolgreich gelöscht",
+        "delete_failed": "Tresor konnte nicht gelöscht werden",
+        
+        # Verify improvements
+        "verify_deep_hint": "Führen Sie mit --deep für detaillierte Dateiprüfung aus",
+        "verify_healthy": "OK Alle Prüfungen bestanden - Tresor ist in Ordnung",
+        "verify_quick_pass": "OK Schnellprüfung bestanden - Tresorstruktur ist gültig",
+        "verify_quick_fail": "X Schnellprüfung fehlgeschlagen - Probleme in der Tresorstruktur",
+        
+        # Storage improvements
+        "storage_warning_full": "WARNUNG: Tresor ist fast voll!",
+        "storage_consider": "Erwägen Sie, einen größeren Tresor zu erstellen oder alte Dateien zu löschen",
+        
+        # List improvements
+        "list_create_first": "Erstellen Sie Ihren ersten Tresor:",
+        "list_example": "  obfutil vault create myvault --size 100 --password",
+        "list_note": "Hinweis: Dateianzahl und Status erfordern --password/--key-file",
+        "list_accessible": "OK = zugänglich, X = gesperrt (Authentifizierung erforderlich)",
+        
+        # Info improvements
+        "info_tip_stats": "Verwenden Sie 'obfutil vault stats {name}' für detaillierte Statistiken",
+        
+        # Create improvements
+        "create_success": "Tresor '{name}' erfolgreich erstellt",
+        "create_next_steps": "Nächste Schritte:",
+        "create_next_add": "  - Dateien hinzufügen: obfutil vault add {name} <datei> --password",
+        "create_next_preview": "  - Dateien auflisten: obfutil vault preview {name} --password",
+        "create_next_stats": "  - Statistiken prüfen: obfutil vault stats {name} --password",
+        "create_failed": "Tresor '{name}' konnte nicht erstellt werden",
+        "create_possible_reasons": "Mögliche Gründe:",
+        "create_reason_exists": "  - Tresor existiert bereits",
+        "create_reason_auth": "  - Ungültiges Passwort oder Schlüssel",
+        "create_reason_space": "  - Nicht genügend Speicherplatz",
+        
+        # Remove improvements
+        "remove_confirm": "Aus Tresor '{name}' entfernen? [y/N]: ",
+        "remove_cancelled": "Entfernen abgebrochen.",
+        "remove_success": "Datei aus Tresor '{name}' entfernt",
+        "remove_failed": "Datei konnte nicht entfernt werden",
+        "remove_tip": "Prüfen Sie mit 'obfutil vault preview', ob die Datei existiert",
+        
+        # Debug improvements
+        "debug_success": "Debug-Informationen für Datei protokolliert: {path}",
+        "debug_check_log": "Prüfen Sie die Log-Datei: ~/.obfutil/logs/program.log",
+        
+        # Common
+        "tip": "Tipp",
+        "warning": "Warnung",
+        "error": "Fehler",
+        "success": "Erfolg",
+        "cancelled": "Vorgang abgebrochen.",
+        
+        # Batch improvements
+        "batch_success": "ERFOLG: {successful}/{processed} Dateien verschlüsselt",
+        "batch_warning": "WARNUNG: {failed} Dateien fehlgeschlagen",
+        
+        # Fatal error
+        "fatal_error": "FATALER FEHLER: {msg}",
+        "report_issue": "Wenn dieser Fehler wiederholt auftritt, melden Sie ihn mit der Log-Datei:",
+        "log_path": "   ~/.obfutil/logs/program.log",
+        "press_enter_exit": "Drücken Sie Enter zum Beenden..."
     }
 }
 

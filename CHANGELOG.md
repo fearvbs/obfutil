@@ -284,3 +284,41 @@ All notable changes to ObfUtil will be documented in this file.
 **Removed**
 - Health method due to its malfunction
 - Delete method due to its uselesness
+
+## [V3.4] - 2026-03-23
+
+### Added
+- **New vault commands**:
+  - `vault stats` - Detailed vault statistics (file types, sizes, largest files)
+  - `vault du` - Disk usage by folder inside vault
+  - `vault search` - Search files by pattern, extension, or substring
+  - `vault rename` - Rename files inside vault without re-encryption
+- **`--force` flag** for `vault add` to overwrite existing files
+- **Space check** before adding files to vault (previns "vault full" errors)
+- **Search filters**: `--min-size`, `--max-size`, `--case`, `--type`
+- **Progress indicator** for large file extraction (>10MB)
+- **Stored credentials** in open vault for subsequent operations
+
+### Changed
+- `vault delete` now shows file count and size before confirmation
+- Improved error messages with actionable suggestions
+- Better hash verification during rename operations
+- Enhanced `vault info` with fallback date from filesystem
+- `vault preview` now shows formatted file sizes (KB, MB)
+
+### Fixed
+- File hash verification after rename operation
+- `vault stats` now correctly displays file sizes
+- `vault search` with `--min-size` now properly filters files
+- `config --lang` command now works correctly
+- Duplicate `_get_auth_method` in commands.py
+- `deep_integrity_check` duplication in container.py
+
+### Security
+- Store passwords/keys in memory only while vault is open
+- Secure memory cleanup on vault close
+- Proper credential handling for rename/remove operations
+
+### Removed
+- `vault files` (use `vault preview`)
+- `vault health` (non-functional, use `vault verify`)

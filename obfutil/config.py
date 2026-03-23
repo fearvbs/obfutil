@@ -17,7 +17,7 @@ LOGS_DIR.mkdir(exist_ok=True)
 VAULTS_DIR.mkdir(exist_ok=True)
 
 # Default values
-VERSION = "3.3-fix"
+VERSION = "3.4"
 DEFAULT_LANG = "en"
 SUPPORTED_LANGUAGES = "en,ru,de"
 DEFAULT_ENCRYPTION_METHOD = "password"
